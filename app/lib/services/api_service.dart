@@ -130,6 +130,25 @@ class ApiService {
     return response.data;
   }
 
+  Future<Map<String, dynamic>> loginWithGoogleAccessToken({
+    required String accessToken,
+    required String email,
+    String? name,
+    String? avatar,
+    String? googleId,
+  }) async {
+    final response = await _dio.post('/auth/google-access-token', data: {
+      'accessToken': accessToken,
+      'email': email,
+      'name': name,
+      'avatar': avatar,
+      'googleId': googleId,
+    });
+    final token = response.data['token'];
+    await _writeToken(token);
+    return response.data;
+  }
+
   Future<Map<String, dynamic>> getProfile() async {
     final response = await _dio.get('/auth/me');
     return response.data;

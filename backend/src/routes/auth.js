@@ -141,6 +141,82 @@ router.post('/google', [
   }
 });
 
+// POST /api/auth/google-access-token
+// Fallback para web quando idToken não está disponível
+router.post('/google-access-token', [
+  body('accessToken').notEmpty().withMessage('accessToken é obrigatório'),
+  body('email').isEmail().withMessage('email é obrigatório'),
+  body('name').optional().trim(),
+  body('avatar').optional().trim(),
+  body('googleId').optional().trim(),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { accessToken, email, name, avatar, googleId } = req.body;
+
+    // Verificar accessToken chamando a API de userinfo do Google
+    let googleProfile;
+    try {
+      const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!response.ok) {
+        return res.status(401).json({ error: 'Access token Google inválido' });
+      }
+      googleProfile = await response.json();
+    } catch (fetchErr) {
+      console.error('Erro ao verificar access token:', fetchErr);
+      return res.status(401).json({ error: 'Não foi possível verificar o access token' });
+    }
+
+    // Usar dados do Google profile (mais confiável) com fallback para dados enviados
+    const verifiedEmail = googleProfile.email || email;
+    const verifiedName = googleProfile.name || name || verifiedEmail.split('@')[0];
+    const verifiedAvatar = googleProfile.picture || avatar;
+    const verifiedGoogleId = googleProfile.sub || googleId;
+
+    // Buscar ou criar usuário
+    let user = null;
+    if (verifiedGoogleId) {
+      user = await User.findOne({ where: { googleId: verifiedGoogleId } });
+    }
+    if (!user) {
+      user = await User.findOne({ where: { email: verifiedEmail } });
+      if (user) {
+        await user.update({ 
+          googleId: verifiedGoogleId || user.googleId, 
+          authProvider: 'google', 
+          avatar: verifiedAvatar || user.avatar 
+        });
+      } else {
+        user = await User.create({
+          name: verifiedName,
+          email: verifiedEmail,
+          googleId: verifiedGoogleId,
+          authProvider: 'google',
+          avatar: verifiedAvatar,
+        });
+      }
+    }
+
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    });
+
+    res.json({
+      token,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, avatar: user.avatar },
+    });
+  } catch (error) {
+    console.error('Erro no login Google (access token):', error);
+    res.status(500).json({ error: 'Erro interno ao fazer login com Google' });
+  }
+});
+
 // GET /api/auth/me
 router.get('/me', auth, async (req, res) => {
   res.json({

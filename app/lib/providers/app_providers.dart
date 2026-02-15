@@ -70,7 +70,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
       
       final google = GoogleSignIn(
         scopes: ['email', 'profile'],
-        serverClientId: kIsWeb ? null : webClientId,
+        serverClientId: webClientId,
       );
       
       final account = await google.signIn();
@@ -82,29 +82,33 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
 
       final auth = await account.authentication;
       final idToken = auth.idToken;
+      final accessToken = auth.accessToken;
       
-      if (idToken == null || idToken.isEmpty) {
-        // No web, se idToken é null, criar usuário localmente como fallback
+      if (idToken != null && idToken.isNotEmpty) {
+        // Caminho ideal: enviar idToken ao backend
+        final data = await _api.loginWithGoogle(idToken);
+        state = AsyncValue.data(User.fromJson(data['user']));
+      } else if (accessToken != null && accessToken.isNotEmpty) {
+        // Fallback web: usar accessToken para autenticar no backend
         if (kIsWeb) {
-          final user = User(
-            id: account.id,
-            name: account.displayName ?? account.email,
-            email: account.email,
-            avatar: account.photoUrl,
-          );
-          state = AsyncValue.data(user);
-          return;
+          html.window.console.log('⚠️ idToken null, usando accessToken como fallback');
         }
+        final data = await _api.loginWithGoogleAccessToken(
+          accessToken: accessToken,
+          email: account.email,
+          name: account.displayName,
+          avatar: account.photoUrl,
+          googleId: account.id,
+        );
+        state = AsyncValue.data(User.fromJson(data['user']));
+      } else {
+        // Nenhum token disponível
         state = AsyncValue.error(
           Exception('Não foi possível obter o token do Google'),
           StackTrace.current,
         );
         return;
       }
-
-      // Enviar idToken ao backend para verificação e criação/login
-      final data = await _api.loginWithGoogle(idToken);
-      state = AsyncValue.data(User.fromJson(data['user']));
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
