@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:html' as html show window;
+import 'dart:html' as html;
 import '../utils/constants.dart';
 
 class ApiService {
@@ -24,12 +24,21 @@ class ApiService {
         final token = await _readToken();
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
+          if (kIsWeb) {
+            html.window.console.log('🔐 Token adicionado ao header: Bearer ${token.substring(0, 20)}...');
+          }
+        } else {
+          if (kIsWeb) {
+            html.window.console.warn('⚠️ Nenhum token disponível para a requisição');
+          }
         }
         handler.next(options);
       },
       onError: (error, handler) {
         if (error.response?.statusCode == 401) {
-          // Token expirado — apagar
+          if (kIsWeb) {
+            html.window.console.error('🚫 Erro 401 - Token expirado');
+          }
           _deleteToken();
         }
         handler.next(error);
@@ -43,14 +52,27 @@ class ApiService {
   Future<String?> _readToken() async {
     try {
       final token = await _storage.read(key: AppConstants.tokenKey);
-      if (token != null) return token;
+      if (token != null) {
+        if (kIsWeb) html.window.console.log('✅ Token lido de FlutterSecureStorage: ${token.substring(0, 20)}...');
+        return token;
+      }
       
       // No web, tentar fallback para localStorage
       if (kIsWeb) {
         final localStorage = html.window.localStorage;
-        return localStorage[AppConstants.tokenKey];
+        final localToken = localStorage[AppConstants.tokenKey];
+        if (localToken != null) {
+          html.window.console.log('✅ Token lido de localStorage: ${localToken.substring(0, 20)}...');
+          return localToken;
+        } else {
+          html.window.console.log('❌ Nenhum token encontrado (nem em storage, nem em localStorage)');
+        }
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kIsWeb) {
+        html.window.console.error('❌ Erro ao ler token: $e');
+      }
+    }
     return null;
   }
 
@@ -140,8 +162,23 @@ class ApiService {
     if (category != null) params['category'] = category;
     if (city != null) params['city'] = city;
 
-    final response = await _dio.get('/events', queryParameters: params);
-    return response.data;
+    if (kIsWeb) {
+      html.window.console.log('📡 Chamando GET /events com parâmetros: $params');
+    }
+    
+    try {
+      final response = await _dio.get('/events', queryParameters: params);
+      final events = response.data['events'] as List?;
+      if (kIsWeb) {
+        html.window.console.log('✅ Getting events returned ${events?.length ?? 0} eventos');
+      }
+      return response.data;
+    } catch (e) {
+      if (kIsWeb) {
+        html.window.console.error('❌ Erro ao buscar eventos: $e');
+      }
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>> getEvent(String id) async {

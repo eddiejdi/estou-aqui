@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:html' as html;
 import '../../models/event.dart';
 import '../../providers/app_providers.dart';
 import '../../services/location_service.dart';
@@ -51,6 +52,7 @@ class _MapScreenState extends ConsumerState<MapScreen> {
   }
 
   Future<void> _loadEvents() async {
+    html.window.console.log('📍 _loadEvents chamado - Lat: ${_currentLocation.latitude}, Lng: ${_currentLocation.longitude}');
     await ref.read(eventsProvider.notifier).loadEvents(
       lat: _currentLocation.latitude,
       lng: _currentLocation.longitude,

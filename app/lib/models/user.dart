@@ -11,7 +11,7 @@ class User extends Equatable {
   const User({
     required this.id,
     required this.name,
-    required this.email,
+    this.email = '',
     this.avatar,
     this.bio,
     this.role = 'user',
@@ -20,8 +20,8 @@ class User extends Equatable {
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'] as String,
-      name: json['name'] as String,
-      email: json['email'] as String,
+      name: json['name'] as String? ?? 'Usuário',
+      email: json['email'] as String? ?? '',
       avatar: json['avatar'] as String?,
       bio: json['bio'] as String?,
       role: json['role'] as String? ?? 'user',

@@ -105,16 +105,16 @@ class SocialEvent extends Equatable {
   factory SocialEvent.fromJson(Map<String, dynamic> json) {
     return SocialEvent(
       id: json['id'] as String,
-      title: json['title'] as String,
-      description: json['description'] as String,
+      title: json['title'] as String? ?? 'Sem título',
+      description: json['description'] as String? ?? '',
       category: EventCategory.fromString(json['category'] ?? 'outro'),
       imageUrl: json['imageUrl'] as String?,
-      latitude: (json['latitude'] as num).toDouble(),
-      longitude: (json['longitude'] as num).toDouble(),
+      latitude: (json['latitude'] as num?)?.toDouble() ?? 0,
+      longitude: (json['longitude'] as num?)?.toDouble() ?? 0,
       address: json['address'] as String?,
       city: json['city'] as String?,
       state: json['state'] as String?,
-      startDate: DateTime.parse(json['startDate'] as String),
+      startDate: json['startDate'] != null ? DateTime.parse(json['startDate'] as String) : DateTime.now(),
       endDate: json['endDate'] != null ? DateTime.parse(json['endDate'] as String) : null,
       status: EventStatus.values.firstWhere(
         (s) => s.name == json['status'],
