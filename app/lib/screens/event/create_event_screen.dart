@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../models/event.dart';
 import '../../providers/app_providers.dart';
 import '../../services/location_service.dart';
+import '../../services/geocode_service.dart';
 import '../../utils/theme.dart';
 
 class CreateEventScreen extends ConsumerStatefulWidget {
@@ -20,6 +21,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   final _descriptionController = TextEditingController();
   final _addressController = TextEditingController();
   final _cityController = TextEditingController();
+  final _cepController = TextEditingController();
   final _areaController = TextEditingController();
 
   EventCategory _category = EventCategory.manifestacao;
@@ -34,6 +36,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   void initState() {
     super.initState();
     _getCurrentLocation();
+    _cepController.addListener(_onCepChanged);
   }
 
   Future<void> _getCurrentLocation() async {
@@ -45,6 +48,21 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         _latitude = pos.latitude;
         _longitude = pos.longitude;
       });
+      // Reverse geocode to fill address/city
+      try {
+        final geocode = ref.read(geocodeServiceProvider);
+        final res = await geocode.reverseGeocode(pos.latitude, pos.longitude);
+        if (res != null && mounted) {
+          final display = res['displayName'] as String?;
+          final city = res['city'] as String?;
+          if (display != null && display.isNotEmpty) {
+            _addressController.text = display;
+          }
+          if (city != null && city.isNotEmpty) {
+            _cityController.text = city;
+          }
+        }
+      } catch (_) {}
     }
   }
 
@@ -54,8 +72,31 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     _descriptionController.dispose();
     _addressController.dispose();
     _cityController.dispose();
+    _cepController.removeListener(_onCepChanged);
+    _cepController.dispose();
     _areaController.dispose();
     super.dispose();
+  }
+
+  void _onCepChanged() {
+    final text = _cepController.text;
+    final digits = text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length == 8) {
+      _lookupCep(digits);
+    }
+  }
+
+  Future<void> _lookupCep(String cep) async {
+    try {
+      final geocode = ref.read(geocodeServiceProvider);
+      final res = await geocode.lookupCep(cep);
+      if (res != null && mounted) {
+        final String address = (res['address'] ?? '') as String;
+        final String city = (res['city'] ?? '') as String;
+        if (address.isNotEmpty) _addressController.text = address;
+        if (city.isNotEmpty) _cityController.text = city;
+      }
+    } catch (_) {}
   }
 
   Future<void> _selectDate(bool isStart) async {
@@ -113,6 +154,10 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Evento criado com sucesso!'), backgroundColor: AppTheme.secondaryColor),
         );
+        // Atualiza a lista de eventos no mapa antes de fechar
+        try {
+          await ref.read(eventsProvider.notifier).refresh(lat: _latitude, lng: _longitude);
+        } catch (_) {}
         context.pop();
       }
     } catch (e) {
@@ -178,6 +223,18 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
               ),
               const SizedBox(height: 16),
 
+              // Endereço
+              // CEP (opcional) — preenche endereço automaticamente
+              TextFormField(
+                controller: _cepController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'CEP (opcional)',
+                  prefixIcon: Icon(Icons.local_post_office),
+                  helperText: 'Digite o CEP para preencher endereço automaticamente',
+                ),
+              ),
+              const SizedBox(height: 12),
               // Endereço
               TextFormField(
                 controller: _addressController,

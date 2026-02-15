@@ -50,15 +50,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(
+        path: '/event/create',
+        builder: (context, state) => const CreateEventScreen(),
+      ),
+      GoRoute(
         path: '/event/:id',
         builder: (context, state) {
           final id = state.pathParameters['id']!;
           return EventDetailScreen(eventId: id);
         },
-      ),
-      GoRoute(
-        path: '/event/create',
-        builder: (context, state) => const CreateEventScreen(),
       ),
       GoRoute(
         path: '/chat/:eventId',

@@ -34,10 +34,7 @@ class LocationService {
 
     try {
       _lastPosition = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 10,
-        ),
+        desiredAccuracy: LocationAccuracy.high,
       );
       return _lastPosition;
     } catch (e) {

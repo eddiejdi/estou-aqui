@@ -80,6 +80,67 @@ router.post('/login', [
   }
 });
 
+// POST /api/auth/google
+router.post('/google', [
+  body('idToken').notEmpty().withMessage('idToken é obrigatório'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { idToken } = req.body;
+
+    // Verificar o token com Google
+    const { OAuth2Client } = require('google-auth-library');
+    const client = new OAuth2Client();
+    let payload;
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch (verifyErr) {
+      return res.status(401).json({ error: 'Token Google inválido' });
+    }
+
+    const { sub: googleId, email, name, picture } = payload;
+
+    // Buscar ou criar usuário
+    let user = await User.findOne({ where: { googleId } });
+    if (!user) {
+      user = await User.findOne({ where: { email } });
+      if (user) {
+        // Vincular conta existente ao Google
+        await user.update({ googleId, authProvider: 'google', avatar: picture || user.avatar });
+      } else {
+        // Criar novo usuário
+        user = await User.create({
+          name: name || email.split('@')[0],
+          email,
+          googleId,
+          authProvider: 'google',
+          avatar: picture,
+        });
+      }
+    }
+
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    });
+
+    res.json({
+      token,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role, avatar: user.avatar },
+    });
+  } catch (error) {
+    console.error('Erro no login Google:', error);
+    res.status(500).json({ error: 'Erro interno ao fazer login com Google' });
+  }
+});
+
 // GET /api/auth/me
 router.get('/me', auth, async (req, res) => {
   res.json({

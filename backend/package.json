@@ -27,6 +27,7 @@
     "sequelize": "^6.37.3",
     "socket.io": "^4.7.5",
     "firebase-admin": "^12.3.0",
+    "google-auth-library": "^9.14.0",
     "uuid": "^10.0.0"
   },
   "devDependencies": {

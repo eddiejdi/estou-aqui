@@ -111,25 +111,72 @@ class _MapScreenState extends ConsumerState<MapScreen> {
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.estouaqui.app',
               ),
-              // Marcadores dos eventos
+              // Marcadores dos eventos e localização do usuário
               eventsState.when(
                 data: (events) => MarkerLayer(
                   markers: [
-                    // Localização do usuário
+                    // Localização do usuário (ponto central com pulsação visual)
                     Marker(
                       point: _currentLocation,
-                      width: 40,
-                      height: 40,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.3),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppTheme.primaryColor, width: 3),
-                        ),
-                        child: const Icon(Icons.my_location, color: AppTheme.primaryColor, size: 20),
+                      width: 60,
+                      height: 60,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Círculo de sombra/halo (simula área de precisão)
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withOpacity(0.15),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AppTheme.primaryColor.withOpacity(0.4),
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                          // Ponto principal do usuário
+                          Container(
+                            width: 16,
+                            height: 16,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 3),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primaryColor.withOpacity(0.5),
+                                  blurRadius: 8,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    // Eventos
+                    // Eventos com marcadores circulares ao fundo (simula área)
+                    ...events.map((event) {
+                      // Marcador de área (fundo)
+                      return Marker(
+                        point: LatLng(event.latitude, event.longitude),
+                        width: _getMarkerSize(event) * 3,
+                        height: _getMarkerSize(event) * 3,
+                        alignment: Alignment.center,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: _getEventColor(event).withOpacity(0.15),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: _getEventColor(event).withOpacity(0.4),
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                    // Eventos - marcadores principales
                     ...events.map((event) => Marker(
                       point: LatLng(event.latitude, event.longitude),
                       width: _getMarkerSize(event),

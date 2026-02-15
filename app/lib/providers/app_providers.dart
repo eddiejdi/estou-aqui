@@ -1,13 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../models/user.dart';
 import '../models/event.dart';
 import '../services/api_service.dart';
 import '../services/location_service.dart';
+import '../services/geocode_service.dart';
 import '../services/socket_service.dart';
 
 // ─── Services ───────────────────────────────────────────
 final apiServiceProvider = Provider<ApiService>((ref) => ApiService());
 final locationServiceProvider = Provider<LocationService>((ref) => LocationService());
+final geocodeServiceProvider = Provider<GeocodeService>((ref) => GeocodeService());
 final socketServiceProvider = Provider<SocketService>((ref) => SocketService());
 
 // ─── Auth State ─────────────────────────────────────────
@@ -54,6 +58,55 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   Future<void> logout() async {
     await _api.logout();
     state = const AsyncValue.data(null);
+  }
+
+  Future<void> loginWithGoogle() async {
+    state = const AsyncValue.loading();
+    try {
+      // No web, o clientId vem da meta tag google-signin-client_id no index.html
+      // No mobile, passamos explicitamente
+      const webClientId = '666885877649-uhl98kcch60l4cqctt2e347nhlhsqta5.apps.googleusercontent.com';
+      
+      final google = GoogleSignIn(
+        scopes: ['email', 'profile'],
+        serverClientId: kIsWeb ? null : webClientId,
+      );
+      
+      final account = await google.signIn();
+      if (account == null) {
+        // Usuário cancelou
+        state = const AsyncValue.data(null);
+        return;
+      }
+
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      
+      if (idToken == null || idToken.isEmpty) {
+        // No web, se idToken é null, criar usuário localmente como fallback
+        if (kIsWeb) {
+          final user = User(
+            id: account.id,
+            name: account.displayName ?? account.email,
+            email: account.email,
+            avatar: account.photoUrl,
+          );
+          state = AsyncValue.data(user);
+          return;
+        }
+        state = AsyncValue.error(
+          Exception('Não foi possível obter o token do Google'),
+          StackTrace.current,
+        );
+        return;
+      }
+
+      // Enviar idToken ao backend para verificação e criação/login
+      final data = await _api.loginWithGoogle(idToken);
+      state = AsyncValue.data(User.fromJson(data['user']));
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
   }
 }
 

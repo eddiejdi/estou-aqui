@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' as html show window;
 import '../utils/constants.dart';
 
 class ApiService {
@@ -19,7 +21,7 @@ class ApiService {
 
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
-        final token = await _storage.read(key: AppConstants.tokenKey);
+        final token = await _readToken();
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
         }
@@ -27,8 +29,8 @@ class ApiService {
       },
       onError: (error, handler) {
         if (error.response?.statusCode == 401) {
-          // Token expirado — redirecionar para login
-          _storage.delete(key: AppConstants.tokenKey);
+          // Token expirado — apagar
+          _deleteToken();
         }
         handler.next(error);
       },
@@ -37,13 +39,54 @@ class ApiService {
 
   Dio get dio => _dio;
 
+  // ─── Token Storage (com suporte para Web) ────────────
+  Future<String?> _readToken() async {
+    try {
+      final token = await _storage.read(key: AppConstants.tokenKey);
+      if (token != null) return token;
+      
+      // No web, tentar fallback para localStorage
+      if (kIsWeb) {
+        final localStorage = html.window.localStorage;
+        return localStorage[AppConstants.tokenKey];
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> _writeToken(String token) async {
+    try {
+      await _storage.write(key: AppConstants.tokenKey, value: token);
+    } catch (_) {}
+    
+    // No web, também salvar em localStorage como fallback
+    if (kIsWeb) {
+      try {
+        html.window.localStorage[AppConstants.tokenKey] = token;
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _deleteToken() async {
+    try {
+      await _storage.delete(key: AppConstants.tokenKey);
+    } catch (_) {}
+    
+    // No web, também remover de localStorage
+    if (kIsWeb) {
+      try {
+        html.window.localStorage.remove(AppConstants.tokenKey);
+      } catch (_) {}
+    }
+  }
+
   // ─── Auth ─────────────────────────────────────────────
   Future<Map<String, dynamic>> register(String name, String email, String password) async {
     final response = await _dio.post('/auth/register', data: {
       'name': name, 'email': email, 'password': password,
     });
     final token = response.data['token'];
-    await _storage.write(key: AppConstants.tokenKey, value: token);
+    await _writeToken(token);
     return response.data;
   }
 
@@ -52,7 +95,16 @@ class ApiService {
       'email': email, 'password': password,
     });
     final token = response.data['token'];
-    await _storage.write(key: AppConstants.tokenKey, value: token);
+    await _writeToken(token);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> loginWithGoogle(String idToken) async {
+    final response = await _dio.post('/auth/google', data: {
+      'idToken': idToken,
+    });
+    final token = response.data['token'];
+    await _writeToken(token);
     return response.data;
   }
 
@@ -66,11 +118,11 @@ class ApiService {
   }
 
   Future<void> logout() async {
-    await _storage.delete(key: AppConstants.tokenKey);
+    await _deleteToken();
   }
 
   Future<bool> isAuthenticated() async {
-    final token = await _storage.read(key: AppConstants.tokenKey);
+    final token = await _readToken();
     return token != null;
   }
 

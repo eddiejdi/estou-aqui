@@ -57,7 +57,22 @@ flutter pub get
 flutter run                 # Rodar no dispositivo/emulador
 ```
 
-## 🛠️ Stack
+## �️ Visualização do Mapa
+
+O mapa exibe:
+- **Seu Ponto de Localização** — Círculo azul com halo, indicando sua posição atual via GPS
+- **Áreas Circulares de Eventos** — Cada evento aparece como um círculo semitransparente, cujo raio varia conforme o número estimado de participantes
+- **Marcadores de Eventos** — Ícone com emoji da categoria + número de confirmações, centralizado na área do evento
+- **Zoom Adaptivo** — Toque no botão de localização para centralizar no seu ponto
+- **Filtros de Categoria** — Filtre eventos por tipo (manifestação, protesto, marcha, etc.)
+
+### Mudanças Recentes (v1.1)
+✨ **Mapa Melhorado:**
+- Localização do usuário agora visível com indicador visual ( pulsação/halo)
+- Eventos exibidos com áreas circulares para melhor percepção da cobertura
+- Melhor performance com marcadores em background renderizados primeiro
+
+## �🛠️ Stack
 
 | Camada     | Tecnologia                          |
 |------------|-------------------------------------|

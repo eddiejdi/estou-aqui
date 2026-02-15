@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -38,6 +36,7 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=estou_aqui_dev_2026
       - JWT_SECRET=dev_jwt_secret_change_in_production
+      - GOOGLE_CLIENT_ID=666885877649-uhl98kcch60l4cqctt2e347nhlhsqta5.apps.googleusercontent.com
     depends_on:
       postgres:
         condition: service_healthy
