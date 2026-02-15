@@ -44,5 +44,15 @@ services:
       - ./backend/src:/app/src
     command: npm run dev
 
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: estou-aqui-web
+    ports:
+      - "8081:80"
+    depends_on:
+      - api
+
 volumes:
   pgdata:
