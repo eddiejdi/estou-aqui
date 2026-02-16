@@ -21,7 +21,7 @@ def run():
         token, user = register_and_login(api_base, name, email, password)
         
         # Abrir formulário de criação de evento (visualização)
-        url = 'http://localhost:8080/#/event/create'
+        url = 'http://localhost:80/#/event/create'
         print(f'Navegando para: {url}')
         driver.get(url)
         time.sleep(2)
