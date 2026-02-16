@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'router.dart';
 import 'utils/theme.dart';
+import 'services/checkin_retry_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  // Inicializa o serviço de retry para retomar checkins pendentes
+  CheckinRetryService().init();
   runApp(const ProviderScope(child: EstouAquiApp()));
 }
 

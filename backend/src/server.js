@@ -98,6 +98,9 @@ async function start() {
   }
 }
 
-start();
+// Start only when executed directly. This prevents the server from auto-listening during tests
+if (require.main === module && process.env.NODE_ENV !== 'test') {
+  start();
+}
 
-module.exports = { app, server, io };
+module.exports = { app, server, io, start };

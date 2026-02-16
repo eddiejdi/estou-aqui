@@ -59,6 +59,48 @@ class AlertingService {
   }
 
   /**
+   * Processa payloads enviados pelo Grafana Alerting (webhook)
+   * Mapeia o payload do Grafana para o formato interno e publica no bus
+   */
+  async processGrafanaWebhook(payload) {
+    try {
+      logger.info('Processing Grafana webhook', { rule: payload.ruleName || payload.title, state: payload.state });
+
+      const state = payload.state || (payload.evalMatches && payload.evalMatches.length ? 'alerting' : 'ok');
+      const timestamp = new Date().toISOString();
+
+      // Construir um alerta interno a partir do payload do Grafana
+      const alertName = payload.ruleName || payload.title || 'grafana_alert';
+      const summary = payload.title || payload.ruleName || '';
+      const description = payload.message || '';
+      const tags = payload.tags || {};
+
+      // Criar um objeto que imite o formato do AlertManager para reaproveitar _processAlert
+      const fakeAlert = {
+        status: state === 'alerting' ? 'firing' : 'resolved',
+        labels: Object.assign({}, tags, { alertname: alertName, instance: (payload.evalMatches && payload.evalMatches[0] && payload.evalMatches[0].tags && payload.evalMatches[0].tags.instance) || 'grafana' }),
+        annotations: {
+          summary,
+          description
+        },
+        startsAt: timestamp,
+        endsAt: null
+      };
+
+      const processed = await this._processAlert(fakeAlert, { groupLabels: {} }, timestamp);
+
+      // Broadcast + publish
+      this._broadcastAlerts([processed], state);
+      this._publishToBus([processed], { source: 'grafana', state, payload });
+
+      return { success: true, processed: 1, alert: processed };
+    } catch (error) {
+      logger.error('Error processing Grafana webhook', { error: error.message, stack: error.stack });
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Processa um alerta individual
    */
   async _processAlert(alert, groupPayload, timestamp) {

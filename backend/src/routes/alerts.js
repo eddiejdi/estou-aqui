@@ -13,8 +13,16 @@ const logger = Logger.instance();
 // FACTORY: AlertingService é inicializado dinamicamente no servidor
 // ============================================================================
 const getAlertingService = (req) => {
-  // O io é passado via app.set('io', io) no server.js
-  // E temos uma referência global na req.app
+  // Prefer the singleton stored on the express app (set in server.js)
+  // Ensure both the `app` store and `req.app.alertingService` property reference
+  // the same instance to avoid duplicated AlertingService objects.
+  const appInstance = (req.app && typeof req.app.get === 'function') ? req.app.get('alertingService') : undefined;
+  if (appInstance) {
+    // keep both references in sync
+    req.app.alertingService = appInstance;
+    return appInstance;
+  }
+
   if (!req.app.alertingService) {
     const AlertingService = require('../services/alerting');
     req.app.alertingService = new AlertingService(req.app.get('io'));
@@ -47,6 +55,34 @@ router.post('/webhook', async (req, res) => {
     });
   } catch (error) {
     logger.error('Error handling alert webhook', { error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+/**
+ * POST /api/alerts/grafana-webhook
+ * Recebe webhooks do Grafana Alerting e publica no Agent Bus
+ */
+router.post('/grafana-webhook', async (req, res) => {
+  try {
+    const alertingService = getAlertingService(req);
+    const payload = req.body;
+
+    logger.info('Received Grafana webhook', {
+      ruleName: payload.ruleName || payload.title,
+      state: payload.state || (payload.evalMatches?.length ? 'alerting' : 'ok')
+    });
+
+    const result = await alertingService.processGrafanaWebhook(payload);
+
+    res.status(200).json({
+      status: 'received',
+      processed: result.processed,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Error handling Grafana webhook', { error: error.message });
     res.status(500).json({ error: error.message });
   }
 });
