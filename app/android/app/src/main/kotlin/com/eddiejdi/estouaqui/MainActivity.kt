@@ -1,4 +1,4 @@
-package com.example.estou_aqui
+package com.eddiejdi.estouaqui
 
 import io.flutter.embedding.android.FlutterActivity
 

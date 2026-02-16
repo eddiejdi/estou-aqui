@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:666885877649:android:f0bf7e7653db677e6a3430",
         "android_client_info": {
-          "package_name": "com.example.estou_aqui"
+          "package_name": "com.eddiejdi.estouaqui"
         }
       },
       "oauth_client": [
@@ -17,7 +17,7 @@
           "client_id": "666885877649-2e26rai8um8uepo33vc80lmoov1hvtdn.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.example.estou_aqui",
+            "package_name": "com.eddiejdi.estouaqui",
             "certificate_hash": "61bd773d21654797727996ccff30ff8d721f45e4"
           }
         },
