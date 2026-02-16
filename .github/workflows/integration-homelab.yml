@@ -38,5 +38,5 @@ jobs:
       - name: Run alerting integration tests
         run: |
           echo "Using HOMELAB_HOST=${HOMELAB_HOST:-192.168.15.2}"
-          HOMELAB_HOST=${HOMELAB_HOST:-192.168.15.2} pytest -q -m integration tests/test_prometheus_runbooks.py tests/test_alertmanager_delivery.py
+          HOMELAB_HOST=${HOMELAB_HOST:-192.168.15.2} pytest -q -m integration tests/test_prometheus_runbooks.py tests/test_alertmanager_delivery.py tests/test_grafana_webhook.py
         timeout-minutes: 10
