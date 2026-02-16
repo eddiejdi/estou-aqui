@@ -64,7 +64,7 @@ def run(url: str, headless: bool = False):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--url', required=False, default='http://localhost:34951/#/events')
+    parser.add_argument('--url', required=False, default='http://localhost:80/#/events')
     parser.add_argument('--headless', action='store_true')
     args = parser.parse_args()
     run(args.url, headless=args.headless)

@@ -29,4 +29,4 @@ def run(url: str, headless: bool = False):
 
 
 if __name__ == '__main__':
-    run('http://localhost:34951/#/events', headless=False)
+    run('http://localhost:80/#/events', headless=False)
