@@ -1,6 +1,9 @@
 /* eslint-env jest */
 const request = require('supertest');
 
+jest.mock('axios');
+const axios = require('axios');
+
 // Mock the models to avoid real DB connection when server starts
 jest.mock('../../src/models', () => ({
   sequelize: {
@@ -15,6 +18,16 @@ jest.mock('../../src/models', () => ({
   CrowdEstimate: {},
   Notification: {},
 }));
+
+// Ensure metrics register is clear between tests
+afterEach(() => {
+  try {
+    const promClient = require('prom-client');
+    promClient.register.clear();
+  } catch (err) {
+    // ignore
+  }
+});
 
 describe('POST /api/alerts/grafana-webhook', () => {
   let app;

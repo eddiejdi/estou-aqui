@@ -202,9 +202,18 @@ class AlertingService {
         // Enviar assincronamente sem bloquear
         axios.post(`${busUrl}/communication/publish`, message)
           .then(res => {
+            // Increment metric on successful publish (non-blocking)
+            try {
+              if (alertsPublishedCounter) {
+                alertsPublishedCounter.inc({ source: message.source || 'estou-aqui-backend', severity: alert.severity || 'unknown' }, 1);
+              }
+            } catch (mErr) {
+              logger.warn('Could not update alerts_published metric', { error: mErr.message });
+            }
+
             logger.info('Alert published to bus', {
               alert: alert.name,
-              messageId: res.data.message_id
+              messageId: res.data && res.data.message_id
             });
           })
           .catch(err => {
