@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "666885877649",
+    "project_id": "estou-aqui-app",
+    "storage_bucket": "estou-aqui-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:666885877649:android:f0bf7e7653db677e6a3430",
+        "android_client_info": {
+          "package_name": "com.example.estou_aqui"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "666885877649-2e26rai8um8uepo33vc80lmoov1hvtdn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.estou_aqui",
+            "certificate_hash": "61bd773d21654797727996ccff30ff8d721f45e4"
+          }
+        },
+        {
+          "client_id": "666885877649-dcdb7lcp35a1v576r6ip7p050c074hs7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBMwanB1YOB_Ul-bTBkqGwBRCHqPhAPlqE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "666885877649-dcdb7lcp35a1v576r6ip7p050c074hs7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

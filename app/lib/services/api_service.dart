@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:html' as html;
+import '../utils/web_utils.dart' as web;
 import '../utils/constants.dart';
 
 class ApiService {
@@ -25,11 +25,11 @@ class ApiService {
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
           if (kIsWeb) {
-            html.window.console.log('🔐 Token adicionado ao header: Bearer ${token.substring(0, 20)}...');
+            web.webConsoleLog('🔐 Token adicionado ao header: Bearer ${token.substring(0, 20)}...');
           }
         } else {
           if (kIsWeb) {
-            html.window.console.warn('⚠️ Nenhum token disponível para a requisição');
+            web.webConsoleWarn('⚠️ Nenhum token disponível para a requisição');
           }
         }
         handler.next(options);
@@ -37,7 +37,7 @@ class ApiService {
       onError: (error, handler) {
         if (error.response?.statusCode == 401) {
           if (kIsWeb) {
-            html.window.console.error('🚫 Erro 401 - Token expirado');
+            web.webConsoleError('🚫 Erro 401 - Token expirado');
           }
           _deleteToken();
         }
@@ -53,24 +53,23 @@ class ApiService {
     try {
       final token = await _storage.read(key: AppConstants.tokenKey);
       if (token != null) {
-        if (kIsWeb) html.window.console.log('✅ Token lido de FlutterSecureStorage: ${token.substring(0, 20)}...');
+        if (kIsWeb) web.webConsoleLog('✅ Token lido de FlutterSecureStorage: ${token.substring(0, 20)}...');
         return token;
       }
       
       // No web, tentar fallback para localStorage
       if (kIsWeb) {
-        final localStorage = html.window.localStorage;
-        final localToken = localStorage[AppConstants.tokenKey];
+        final localToken = web.webLocalStorageRead(AppConstants.tokenKey);
         if (localToken != null) {
-          html.window.console.log('✅ Token lido de localStorage: ${localToken.substring(0, 20)}...');
+          web.webConsoleLog('✅ Token lido de localStorage: ${localToken.substring(0, 20)}...');
           return localToken;
         } else {
-          html.window.console.log('❌ Nenhum token encontrado (nem em storage, nem em localStorage)');
+          web.webConsoleLog('❌ Nenhum token encontrado (nem em storage, nem em localStorage)');
         }
       }
     } catch (e) {
       if (kIsWeb) {
-        html.window.console.error('❌ Erro ao ler token: $e');
+        web.webConsoleError('❌ Erro ao ler token: $e');
       }
     }
     return null;
@@ -84,7 +83,7 @@ class ApiService {
     // No web, também salvar em localStorage como fallback
     if (kIsWeb) {
       try {
-        html.window.localStorage[AppConstants.tokenKey] = token;
+        web.webLocalStorageWrite(AppConstants.tokenKey, token);
       } catch (_) {}
     }
   }
@@ -97,7 +96,7 @@ class ApiService {
     // No web, também remover de localStorage
     if (kIsWeb) {
       try {
-        html.window.localStorage.remove(AppConstants.tokenKey);
+        web.webLocalStorageRemove(AppConstants.tokenKey);
       } catch (_) {}
     }
   }
@@ -182,19 +181,19 @@ class ApiService {
     if (city != null) params['city'] = city;
 
     if (kIsWeb) {
-      html.window.console.log('📡 Chamando GET /events com parâmetros: $params');
+      web.webConsoleLog('📡 Chamando GET /events com parâmetros: $params');
     }
     
     try {
       final response = await _dio.get('/events', queryParameters: params);
       final events = response.data['events'] as List?;
       if (kIsWeb) {
-        html.window.console.log('✅ Getting events returned ${events?.length ?? 0} eventos');
+        web.webConsoleLog('✅ Getting events returned ${events?.length ?? 0} eventos');
       }
       return response.data;
     } catch (e) {
       if (kIsWeb) {
-        html.window.console.error('❌ Erro ao buscar eventos: $e');
+        web.webConsoleError('❌ Erro ao buscar eventos: $e');
       }
       rethrow;
     }

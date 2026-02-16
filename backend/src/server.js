@@ -14,7 +14,10 @@ const checkinRoutes = require('./routes/checkins');
 const chatRoutes = require('./routes/chat');
 const estimateRoutes = require('./routes/estimates');
 const notificationRoutes = require('./routes/notifications');
+const alertRoutes = require('./routes/alerts');
 const setupSocket = require('./services/socket');
+const setupAlertSocket = require('./services/alert-socket');
+const AlertingService = require('./services/alerting');
 
 const app = express();
 const server = http.createServer(app);
@@ -41,6 +44,10 @@ app.use(express.urlencoded({ extended: true }));
 // Disponibilizar io para as rotas
 app.set('io', io);
 
+// Inicializar AlertingService
+const alertingService = new AlertingService(io);
+app.set('alertingService', alertingService);
+
 // Rotas
 app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
@@ -48,6 +55,7 @@ app.use('/api/checkins', checkinRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/estimates', estimateRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/alerts', alertRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -69,6 +77,7 @@ app.use((err, req, res, _next) => {
 
 // Socket.IO
 setupSocket(io);
+setupAlertSocket(io);
 
 const PORT = process.env.PORT || 3000;
 

@@ -14,6 +14,7 @@ tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'agent', 'pylance-
 - Sempre na terceira vez que tentar resolver o mesmo problema sem solução efetue uma pesquisa profunda na internet a procura da solução.
 - Sempre envie o timestamp nas suas mensagens.
 - Nunca crie um fallback sem ser solicitado ou aprovado.
+ - Somente execute operações simuladas, mock e afins somente com minha autorização; caso contrário execute somente operações reais.
 - Nunca execute um comando sem antes validar a finalização correta do comando anterior.
 - Sempre que executar um comando, verifique o resultado no terminal.
 - Antes de abrir um Pull Request, sempre pergunte ao usuário para confirmar.

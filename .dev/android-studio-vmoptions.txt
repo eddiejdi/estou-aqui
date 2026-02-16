@@ -1,0 +1,14 @@
+# Recommended Android Studio custom VM options
+# To apply: Help > Edit Custom VM Options... then replace contents with below and restart Studio
+
+-Xms128m
+-Xmx4096m
+-XX:MaxMetaspaceSize=1024m
+-XX:ReservedCodeCacheSize=512m
+-XX:+UseG1GC
+-Dsun.io.useCanonCaches=false
+-Djava.net.preferIPv4Stack=true
+-Dfile.encoding=UTF-8
+-XX:+HeapDumpOnOutOfMemoryError
+
+# If you have >16GB RAM, increase -Xmx to 6g or 8g carefully.

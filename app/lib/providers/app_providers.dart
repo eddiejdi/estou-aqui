@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:html' as html;
+import '../utils/web_utils.dart' as web;
 import '../models/user.dart';
 import '../models/event.dart';
 import '../services/api_service.dart';
@@ -91,7 +91,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
       } else if (accessToken != null && accessToken.isNotEmpty) {
         // Fallback web: usar accessToken para autenticar no backend
         if (kIsWeb) {
-          html.window.console.log('⚠️ idToken null, usando accessToken como fallback');
+          web.webConsoleLog('⚠️ idToken null, usando accessToken como fallback');
         }
         final data = await _api.loginWithGoogleAccessToken(
           accessToken: accessToken,
@@ -127,7 +127,7 @@ class EventsNotifier extends StateNotifier<AsyncValue<List<SocialEvent>>> {
 
   Future<void> loadEvents({double? lat, double? lng, String? status, String? category}) async {
     state = const AsyncValue.loading();
-    if (kIsWeb) html.window.console.log('🔄 EventsNotifier.loadEvents() chamado - lat: $lat, lng: $lng, category: $category');
+    if (kIsWeb) web.webConsoleLog('🔄 EventsNotifier.loadEvents() chamado - lat: $lat, lng: $lng, category: $category');
     try {
       final data = await _api.getEvents(lat: lat, lng: lng, status: status, category: category);
       var events = (data['events'] as List)
@@ -136,18 +136,18 @@ class EventsNotifier extends StateNotifier<AsyncValue<List<SocialEvent>>> {
       
       // Se não encontrou eventos na região, buscar todos sem filtro de localização
       if (events.isEmpty && (lat != null || lng != null)) {
-        if (kIsWeb) html.window.console.log('⚠️ Nenhum evento na região, buscando todos os eventos...');
+        if (kIsWeb) web.webConsoleLog('⚠️ Nenhum evento na região, buscando todos os eventos...');
         final allData = await _api.getEvents(status: status, category: category);
         events = (allData['events'] as List)
             .map((e) => SocialEvent.fromJson(e as Map<String, dynamic>))
             .toList();
-        if (kIsWeb) html.window.console.log('📍 Carregados ${events.length} eventos globais');
+        if (kIsWeb) web.webConsoleLog('📍 Carregados ${events.length} eventos globais');
       }
       
-      if (kIsWeb) html.window.console.log('✅ EventsNotifier carregou ${events.length} eventos');
+      if (kIsWeb) web.webConsoleLog('✅ EventsNotifier carregou ${events.length} eventos');
       state = AsyncValue.data(events);
     } catch (e, st) {
-      if (kIsWeb) html.window.console.error('❌ Erro ao carregar eventos: $e');
+      if (kIsWeb) web.webConsoleError('❌ Erro ao carregar eventos: $e');
       state = AsyncValue.error(e, st);
     }
   }
