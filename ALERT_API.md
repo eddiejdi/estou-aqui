@@ -57,6 +57,50 @@ Content-Type: application/json
 
 ---
 
+### 1.1 Grafana webhook (POST)
+
+**Recebe webhooks do Grafana Alerting.** Use este endpoint quando provisionar um Contact Point no Grafana que encaminhe notificações para o backend Estou‑Aqui.
+
+```
+POST /api/alerts/grafana-webhook
+Content-Type: application/json
+```
+
+#### Payload (exemplo enviado pelo Grafana)
+```json
+{
+  "title": "High memory usage",
+  "ruleName": "HighMemoryUsage",
+  "state": "alerting",
+  "message": "Memory > 90%",
+  "evalMatches": [
+    { "metric": "memory_total", "value": 93, "tags": { "instance": "homelab" }, "time": "2026-02-16T22:00:00.000Z" }
+  ],
+  "tags": { "severity": "critical" },
+  "ruleUrl": "http://grafana/alert/1"
+}
+```
+
+> Nota: o backend mapeia o payload do Grafana para um formato interno (semelhante ao AlertManager) e publica o alerta no Agent Bus / Socket.io.
+
+#### Response
+```json
+{
+  "status": "received",
+  "processed": 1,
+  "timestamp": "2026-02-16T22:00:00Z"
+}
+```
+
+#### Status Code
+- `200 OK` - Webhook processado com sucesso
+- `400 Bad Request` - Payload inválido
+- `500 Internal Server Error` - Erro ao processar
+
+> Ver `ALERT_INTEGRATION_GUIDE.md` para instruções de provisionamento do Contact Point no Grafana e teste E2E.
+
+---
+
 ### 2. Get Active Alerts (GET)
 
 **Retorna todos os alertas ativos no momento**

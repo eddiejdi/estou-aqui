@@ -187,6 +187,41 @@ O backend agora estará:
 ### Painel Grafana — saneamento de alertas
 - Novo painel `Active Prometheus Alerts` foi adicionado ao dashboard `homelab-copilot-agent` para visualizar alertas `firing` relacionados ao homelab e ao homelab-advisor.
 - Use o link `Open Alertmanager` no próprio painel para abrir o Alertmanager e silenciar/rever notificações rapidamente.
+
+#### Provisionar Contact Point no Grafana (Estou‑Aqui webhook)
+- Objetivo: configurar o Grafana para enviar notificações/alertas diretamente ao backend `estou-aqui` via `POST /api/alerts/grafana-webhook`.
+
+Opções:
+1) Runtime (via API Grafana):
+```bash
+curl -sS -u <grafana_user>:<grafana_pass> \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Estou-Aqui Backend","type":"webhook","settings":{"url":"http://127.0.0.1:3456/api/alerts/grafana-webhook","httpMethod":"POST","uploadImage":false},"disableResolveMessage":false}' \
+  -X POST http://<grafana-host>:3000/api/v1/provisioning/contact-points
+```
+2) Provisioning (arquivo) — opcional: adicionar um arquivo de provisioning `contact-points` na pasta de provisioning do Grafana (ex.: `/home/homelab/monitoring/grafana/provisioning/`) conforme sua estratégia de provisionamento.
+
+Validação:
+- Listar contact points provisionados:
+  `curl -sS -u <grafana_user>:<grafana_pass> http://<grafana-host>:3000/api/v1/provisioning/contact-points | jq '.'`
+- Confirmar que o Contact Point aparece com `url: http://127.0.0.1:3456/api/alerts/grafana-webhook`.
+
+Teste E2E (rápido):
+1. Criar/acionar uma regra de alerta no Grafana que notifique o Contact Point (ou usar o botão "Test" no UI se disponível).
+2. OU simular o payload do Grafana diretamente no backend (exemplo abaixo):
+```bash
+curl -sS -X POST http://<estou-aqui-host>:3456/api/alerts/grafana-webhook \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"High memory usage","ruleName":"HighMemoryUsage","state":"alerting","message":"Memory > 90%","evalMatches":[{"metric":"memory_total","value":93,"tags":{"instance":"homelab"},"time":"2026-02-16T22:00:00.000Z"}],"tags":{"severity":"critical"},"ruleUrl":"http://grafana/alert/1"}'
+```
+3. Verificar backend/homelab:
+  - `curl http://<estou-aqui-host>:3456/api/alerts/active | jq` — o alerta deve aparecer como `HighMemoryUsage`.
+  - Conferir `journalctl -u estouaqui-backend` e `curl http://<homelab>:8085/metrics | grep advisor` conforme necessário.
+
+Observações operacionais:
+- Use `127.0.0.1:3456` para apontar diretamente ao processo backend quando nginx serve SPA em `:3000`.
+- Se Grafana estiver containerizada, prefira provisioning via API ou um arquivo de provisioning que seja aplicado no container host.
+
 - Boas práticas ao saneamento:
   - Priorize alertas `critical` para investigação imediata; `warning` pode ser agrupado e avaliado durante manutenção.
   - Ajuste `duration`/`thresholds` nas regras do Prometheus (em `/etc/prometheus/rules/`) em vez de apenas no dashboard — isso reduz ruído globalmente.

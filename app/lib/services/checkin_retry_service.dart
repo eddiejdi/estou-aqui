@@ -4,46 +4,40 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 
-/// Serviço de retry para check-ins offline.
+/// Serviço de retry offline para check-ins.
 ///
-/// Quando o check-in falha por falta de internet, o pedido é persistido
-/// localmente (SharedPreferences) e retentado em background com backoff
-/// exponencial até ter sucesso.
+/// Quando o usuário faz check-in sem internet, o check-in é salvo
+/// localmente e retentado automaticamente em background até conseguir.
 class CheckinRetryService {
   static final CheckinRetryService _instance = CheckinRetryService._internal();
   factory CheckinRetryService() => _instance;
   CheckinRetryService._internal();
 
-  static const _storageKey = 'pending_checkins';
-  static const _maxRetries = 50; // ~2h30 de tentativas com backoff
-  static const _baseDelay = Duration(seconds: 5);
-  static const _maxDelay = Duration(minutes: 3);
+  static const String _pendingKey = 'pending_checkins';
+  static const Duration _retryInterval = Duration(seconds: 30);
+  static const int _maxRetries = 100; // ~50 min de tentativas
 
+  Timer? _retryTimer;
+  bool _isRetrying = false;
   final ApiService _api = ApiService();
-  final Map<String, Timer> _activeTimers = {};
-  final _pendingController = StreamController<List<PendingCheckin>>.broadcast();
 
-  /// Stream para ouvir mudanças nos checkins pendentes
-  Stream<List<PendingCheckin>> get pendingStream => _pendingController.stream;
+  /// Stream controller para notificar mudanças de status
+  final _statusController = StreamController<CheckinRetryStatus>.broadcast();
+  Stream<CheckinRetryStatus> get statusStream => _statusController.stream;
 
-  bool _initialized = false;
+  /// Lista de callbacks para notificar sucesso de retry
+  final List<void Function(PendingCheckin)> _onSuccessCallbacks = [];
 
-  /// Inicializa o serviço e retoma retentativas de checkins pendentes da sessão anterior
-  Future<void> init() async {
-    if (_initialized) return;
-    _initialized = true;
-
-    final pending = await _loadPending();
-    if (pending.isNotEmpty) {
-      debugPrint('📍 CheckinRetryService: ${pending.length} checkin(s) pendente(s) encontrado(s)');
-      for (final checkin in pending) {
-        _scheduleRetry(checkin);
-      }
-    }
+  void onRetrySuccess(void Function(PendingCheckin) callback) {
+    _onSuccessCallbacks.add(callback);
   }
 
-  /// Enfileira um check-in para retry em background
-  Future<void> enqueue({
+  void removeOnRetrySuccess(void Function(PendingCheckin) callback) {
+    _onSuccessCallbacks.remove(callback);
+  }
+
+  /// Adiciona um check-in pendente para retry
+  Future<void> addPendingCheckin({
     required String eventId,
     required double latitude,
     required double longitude,
@@ -56,132 +50,188 @@ class CheckinRetryService {
       retryCount: 0,
     );
 
-    await _savePending(pending);
-    _notifyListeners();
-    _scheduleRetry(pending);
+    final prefs = await SharedPreferences.getInstance();
+    final list = _loadPendingList(prefs);
+    
+    // Evitar duplicatas para o mesmo evento
+    list.removeWhere((p) => p.eventId == eventId);
+    list.add(pending);
+    
+    await _savePendingList(prefs, list);
 
-    debugPrint('📍 CheckinRetryService: check-in para evento $eventId enfileirado');
+    debugPrint('📍 [CheckinRetry] Check-in pendente salvo para evento $eventId');
+    _statusController.add(CheckinRetryStatus(
+      pendingCount: list.length,
+      lastEvent: eventId,
+      message: 'Check-in salvo offline. Tentando enviar...',
+    ));
+
+    // Iniciar timer de retry se não estiver rodando
+    _startRetryTimer();
   }
 
-  /// Remove um checkin pendente (quando desistir ou cancelar)
-  Future<void> cancel(String eventId) async {
-    _activeTimers[eventId]?.cancel();
-    _activeTimers.remove(eventId);
-    await _removePending(eventId);
-    _notifyListeners();
-    debugPrint('📍 CheckinRetryService: check-in para evento $eventId cancelado');
+  /// Inicia o timer de retry em background
+  void _startRetryTimer() {
+    if (_retryTimer?.isActive == true) return;
+
+    _retryTimer = Timer.periodic(_retryInterval, (_) {
+      _processRetries();
+    });
+
+    // Tentar imediatamente na primeira vez
+    _processRetries();
   }
 
-  /// Retorna a lista atual de checkins pendentes
-  Future<List<PendingCheckin>> getPending() => _loadPending();
+  /// Processa todos os check-ins pendentes
+  Future<void> _processRetries() async {
+    if (_isRetrying) return;
+    _isRetrying = true;
 
-  /// Verifica se um evento tem checkin pendente
-  Future<bool> hasPending(String eventId) async {
-    final pending = await _loadPending();
-    return pending.any((p) => p.eventId == eventId);
-  }
-
-  /// Tenta enviar todos os pendentes imediatamente (ex: quando internet voltar)
-  Future<void> retryAllNow() async {
-    final pending = await _loadPending();
-    for (final checkin in pending) {
-      _activeTimers[checkin.eventId]?.cancel();
-      _attemptCheckin(checkin);
-    }
-  }
-
-  // ─── Lógica interna ───────────────────────────────────
-
-  void _scheduleRetry(PendingCheckin checkin) {
-    // Calcula delay com backoff exponencial + jitter
-    final backoffMs = (_baseDelay.inMilliseconds * (1 << checkin.retryCount.clamp(0, 10)))
-        .clamp(0, _maxDelay.inMilliseconds);
-    // Adiciona jitter de ±20%
-    final jitter = (backoffMs * 0.2 * (DateTime.now().millisecond / 1000 - 0.5)).round();
-    final delay = Duration(milliseconds: backoffMs + jitter);
-
-    debugPrint('📍 Retry #${checkin.retryCount + 1} para evento ${checkin.eventId} em ${delay.inSeconds}s');
-
-    _activeTimers[checkin.eventId]?.cancel();
-    _activeTimers[checkin.eventId] = Timer(delay, () => _attemptCheckin(checkin));
-  }
-
-  Future<void> _attemptCheckin(PendingCheckin checkin) async {
     try {
-      await _api.checkin(checkin.eventId, checkin.latitude, checkin.longitude);
+      final prefs = await SharedPreferences.getInstance();
+      final list = _loadPendingList(prefs);
 
-      // Sucesso!
-      debugPrint('✅ CheckinRetryService: check-in para evento ${checkin.eventId} realizado com sucesso!');
-      await _removePending(checkin.eventId);
-      _activeTimers.remove(checkin.eventId);
-      _notifyListeners();
-    } catch (e) {
-      debugPrint('❌ CheckinRetryService: falha no retry #${checkin.retryCount + 1} para ${checkin.eventId}: $e');
-
-      if (checkin.retryCount + 1 >= _maxRetries) {
-        debugPrint('⚠️ CheckinRetryService: máximo de retentativas atingido para ${checkin.eventId}');
-        await _removePending(checkin.eventId);
-        _activeTimers.remove(checkin.eventId);
-        _notifyListeners();
+      if (list.isEmpty) {
+        _stopRetryTimer();
+        _isRetrying = false;
         return;
       }
 
-      // Incrementa retry count e reagenda
-      final updated = checkin.copyWith(retryCount: checkin.retryCount + 1);
-      await _updatePending(updated);
-      _scheduleRetry(updated);
+      debugPrint('📍 [CheckinRetry] Processando ${list.length} check-in(s) pendente(s)...');
+
+      final toRemove = <String>[];
+      final updated = <PendingCheckin>[];
+
+      for (final pending in list) {
+        try {
+          await _api.checkin(pending.eventId, pending.latitude, pending.longitude);
+
+          debugPrint('✅ [CheckinRetry] Check-in enviado com sucesso para evento ${pending.eventId}');
+          toRemove.add(pending.eventId);
+
+          // Notificar sucesso
+          _statusController.add(CheckinRetryStatus(
+            pendingCount: list.length - toRemove.length,
+            lastEvent: pending.eventId,
+            message: '✅ Check-in enviado com sucesso!',
+            isSuccess: true,
+          ));
+
+          // Notificar callbacks
+          for (final cb in _onSuccessCallbacks) {
+            cb(pending);
+          }
+        } catch (e) {
+          final newRetryCount = pending.retryCount + 1;
+          
+          if (newRetryCount >= _maxRetries) {
+            debugPrint('❌ [CheckinRetry] Máximo de tentativas atingido para evento ${pending.eventId}');
+            toRemove.add(pending.eventId);
+            _statusController.add(CheckinRetryStatus(
+              pendingCount: list.length - toRemove.length,
+              lastEvent: pending.eventId,
+              message: '❌ Check-in falhou após $newRetryCount tentativas',
+              isFailed: true,
+            ));
+          } else {
+            debugPrint('⏳ [CheckinRetry] Tentativa $newRetryCount falhou para evento ${pending.eventId}: $e');
+            updated.add(pending.copyWith(retryCount: newRetryCount));
+            _statusController.add(CheckinRetryStatus(
+              pendingCount: list.length - toRemove.length,
+              lastEvent: pending.eventId,
+              message: 'Tentativa $newRetryCount — sem conexão. Retentando em ${_retryInterval.inSeconds}s...',
+            ));
+          }
+        }
+      }
+
+      // Atualizar lista: remover os que foram enviados ou falharam definitivamente
+      final remaining = updated.where((p) => !toRemove.contains(p.eventId)).toList();
+      await _savePendingList(prefs, remaining);
+
+      if (remaining.isEmpty) {
+        _stopRetryTimer();
+      }
+    } catch (e) {
+      debugPrint('❌ [CheckinRetry] Erro ao processar retries: $e');
+    } finally {
+      _isRetrying = false;
     }
   }
 
-  // ─── Persistência (SharedPreferences) ─────────────────
+  /// Para o timer de retry
+  void _stopRetryTimer() {
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    debugPrint('📍 [CheckinRetry] Timer de retry parado — nenhum check-in pendente');
+  }
 
-  Future<List<PendingCheckin>> _loadPending() async {
+  /// Retorna a lista de check-ins pendentes
+  Future<List<PendingCheckin>> getPendingCheckins() async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getStringList(_storageKey) ?? [];
-    return raw.map((json) => PendingCheckin.fromJson(jsonDecode(json))).toList();
+    return _loadPendingList(prefs);
   }
 
-  Future<void> _savePending(PendingCheckin checkin) async {
+  /// Retorna se há check-ins pendentes
+  Future<bool> hasPending() async {
+    final list = await getPendingCheckins();
+    return list.isNotEmpty;
+  }
+
+  /// Remove um check-in pendente manualmente (ex: usuário cancelou)
+  Future<void> removePending(String eventId) async {
     final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getStringList(_storageKey) ?? [];
-    // Remove duplicata se existir
-    raw.removeWhere((json) {
-      final existing = PendingCheckin.fromJson(jsonDecode(json));
-      return existing.eventId == checkin.eventId;
-    });
-    raw.add(jsonEncode(checkin.toJson()));
-    await prefs.setStringList(_storageKey, raw);
+    final list = _loadPendingList(prefs);
+    list.removeWhere((p) => p.eventId == eventId);
+    await _savePendingList(prefs, list);
+
+    if (list.isEmpty) {
+      _stopRetryTimer();
+    }
   }
 
-  Future<void> _updatePending(PendingCheckin checkin) async {
-    await _savePending(checkin); // savePending já trata duplicatas
+  /// Força retry imediato
+  Future<void> forceRetry() async {
+    await _processRetries();
   }
 
-  Future<void> _removePending(String eventId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getStringList(_storageKey) ?? [];
-    raw.removeWhere((json) {
-      final existing = PendingCheckin.fromJson(jsonDecode(json));
-      return existing.eventId == eventId;
-    });
-    await prefs.setStringList(_storageKey, raw);
+  /// Inicializa o serviço — chamar no startup do app
+  Future<void> init() async {
+    final pending = await getPendingCheckins();
+    if (pending.isNotEmpty) {
+      debugPrint('📍 [CheckinRetry] ${pending.length} check-in(s) pendente(s) encontrado(s) ao iniciar');
+      _startRetryTimer();
+    }
   }
 
-  Future<void> _notifyListeners() async {
-    final pending = await _loadPending();
-    _pendingController.add(pending);
-  }
-
+  /// Libera recursos
   void dispose() {
-    for (final timer in _activeTimers.values) {
-      timer.cancel();
+    _stopRetryTimer();
+    _statusController.close();
+  }
+
+  // ─── Persistência local ────────────────────────────────
+
+  List<PendingCheckin> _loadPendingList(SharedPreferences prefs) {
+    final json = prefs.getString(_pendingKey);
+    if (json == null) return [];
+    try {
+      final list = jsonDecode(json) as List;
+      return list.map((e) => PendingCheckin.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (e) {
+      debugPrint('❌ [CheckinRetry] Erro ao decodificar pendentes: $e');
+      return [];
     }
-    _activeTimers.clear();
-    _pendingController.close();
+  }
+
+  Future<void> _savePendingList(SharedPreferences prefs, List<PendingCheckin> list) async {
+    final json = jsonEncode(list.map((e) => e.toJson()).toList());
+    await prefs.setString(_pendingKey, json);
   }
 }
 
-// ─── Modelo de checkin pendente ──────────────────────────
+// ─── Modelos ─────────────────────────────────────────────
+
 class PendingCheckin {
   final String eventId;
   final double latitude;
@@ -194,7 +244,7 @@ class PendingCheckin {
     required this.latitude,
     required this.longitude,
     required this.createdAt,
-    this.retryCount = 0,
+    required this.retryCount,
   });
 
   PendingCheckin copyWith({int? retryCount}) {
@@ -208,12 +258,12 @@ class PendingCheckin {
   }
 
   Map<String, dynamic> toJson() => {
-        'eventId': eventId,
-        'latitude': latitude,
-        'longitude': longitude,
-        'createdAt': createdAt.toIso8601String(),
-        'retryCount': retryCount,
-      };
+    'eventId': eventId,
+    'latitude': latitude,
+    'longitude': longitude,
+    'createdAt': createdAt.toIso8601String(),
+    'retryCount': retryCount,
+  };
 
   factory PendingCheckin.fromJson(Map<String, dynamic> json) {
     return PendingCheckin(
@@ -224,7 +274,20 @@ class PendingCheckin {
       retryCount: json['retryCount'] as int? ?? 0,
     );
   }
+}
 
-  @override
-  String toString() => 'PendingCheckin(event=$eventId, retry=$retryCount, created=$createdAt)';
+class CheckinRetryStatus {
+  final int pendingCount;
+  final String lastEvent;
+  final String message;
+  final bool isSuccess;
+  final bool isFailed;
+
+  const CheckinRetryStatus({
+    required this.pendingCount,
+    required this.lastEvent,
+    required this.message,
+    this.isSuccess = false,
+    this.isFailed = false,
+  });
 }

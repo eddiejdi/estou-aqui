@@ -7,7 +7,7 @@ import 'services/checkin_retry_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  // Inicializa o serviço de retry para retomar checkins pendentes
+  // Inicializar retry de check-ins pendentes
   CheckinRetryService().init();
   runApp(const ProviderScope(child: EstouAquiApp()));
 }
