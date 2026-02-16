@@ -145,8 +145,29 @@ cd /home/edenilson/eddie-auto-dev/estou-aqui/backend
 # O script configura AlertManager para enviar para ambos:
 # - Agent API (:8503)
 # - Estou Aqui (:3000)
+# OBS: usa `127.0.0.1` para evitar resoluções de `localhost` em containers
 bash scripts/setup-alert-integration.sh
 ```
+
+#### Troubleshooting: 405 Method Not Allowed (AlertManager → Estou-Aqui)
+- Sintoma: AlertManager registra `405 Method Not Allowed` ao postar em `http://localhost:3000/api/alerts/webhook`.
+- Causas comuns:
+  - AlertManager está dentro de um container e `localhost` aponta para o próprio container (chave: use `127.0.0.1` ou o IP do host).
+  - Outro serviço escuta na porta 3000 (Nginx/Grafana) e responde com 405.
+  - O backend estava parado no momento do envio; o proxy respondeu com 405/erro genérico.
+- Correção rápida:
+  1. Atualize o webhook do AlertManager para `http://127.0.0.1:3000/api/alerts/webhook` (script already sets this).
+  2. Verifique se o `estou-aqui` backend está ativo: `curl -sS http://127.0.0.1:3000/health` (esperado 200).
+  3. Confirme que nada mais está escutando na porta 3000: `sudo ss -ltnp | grep :3000`.
+  4. Recarregue o AlertManager: `sudo systemctl reload alertmanager` and re-run the test alert.
+- Recomendação: adicionar testes automatizados (incluídos abaixo) para evitar regressões.
+
+#### Testes incluídos
+- `tests/test_homelab_agent_registration.py` — teste `pytest -m integration` que valida `advisor_api_registration_status == 1` no agent `/metrics` (usa `HOMELAB_HOST` para apontar o host remoto).  
+- Como executar localmente (homelab access):
+  - HOMELAB_HOST=192.168.15.2 pytest -q -m integration tests/test_homelab_agent_registration.py
+  - No CI esses testes ficam marcados como `integration` (executar explicitamente quando necessário).
+
 
 ### Passo 2: Iniciar o Backend do Estou Aqui
 ```bash
