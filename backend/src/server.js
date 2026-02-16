@@ -19,6 +19,16 @@ const setupSocket = require('./services/socket');
 const setupAlertSocket = require('./services/alert-socket');
 const AlertingService = require('./services/alerting');
 
+// Expor métricas Prometheus via prom-client
+let promClient;
+try {
+  promClient = require('prom-client');
+  // coletar métricas padrão (CPU, heap etc.)
+  promClient.collectDefaultMetrics({ timeout: 5000 });
+} catch (err) {
+  console.warn('prom-client not available - metrics endpoint disabled');
+}
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -37,7 +47,14 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-app.use(morgan('dev'));
+// Morgan: log detalhado em dev, compacto em produção
+if (process.env.NODE_ENV === 'production') {
+  app.use(morgan('combined', {
+    skip: (req) => req.url === '/health', // não logar health checks
+  }));
+} else {
+  app.use(morgan('dev'));
+}
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -61,6 +78,19 @@ app.use('/api/alerts', alertRoutes);
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'estou-aqui-api' });
 });
+
+// Metrics endpoint (Prometheus)
+if (promClient) {
+  app.get('/metrics', async (req, res) => {
+    try {
+      res.set('Content-Type', promClient.register.contentType);
+      const body = await promClient.register.metrics();
+      res.send(body);
+    } catch (err) {
+      res.status(500).send(err.message);
+    }
+  });
+}
 
 // 404
 app.use((req, res) => {
