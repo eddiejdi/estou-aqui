@@ -156,7 +156,7 @@ bash scripts/setup-alert-integration.sh
   - Outro serviço escuta na porta 3000 (Nginx/Grafana) e responde com 405.
   - O backend estava parado no momento do envio; o proxy respondeu com 405/erro genérico.
 - Correção rápida:
-  1. Atualize o webhook do AlertManager para `http://127.0.0.1:3000/api/alerts/webhook` (script already sets this).
+  1. Atualize o webhook do AlertManager para `http://127.0.0.1:3000/api/alerts/webhook` **ou** para `http://127.0.0.1:3456/api/alerts/webhook` (use 3456 to target the backend process directly when nginx serves the SPA on :3000). (script updated to prefer :3456).
   2. Verifique se o `estou-aqui` backend está ativo: `curl -sS http://127.0.0.1:3000/health` (esperado 200).
   3. Confirme que nada mais está escutando na porta 3000: `sudo ss -ltnp | grep :3000`.
   4. Recarregue o AlertManager: `sudo systemctl reload alertmanager` and re-run the test alert.

@@ -34,7 +34,8 @@ global:
   webex_api_url: 'https://webexapis.com/v1/messages'
   templates: []
 
-templates: []
+templates:
+  - "/etc/alertmanager/templates/runbook.tmpl"
 
 route:
   receiver: default
@@ -67,7 +68,7 @@ receivers:
         bearer_token: ''
         bearer_token_file: ''
       # Webhook para o Estou Aqui Backend (Real-time alerts nos painéis)
-      - url: http://localhost:3000/api/alerts/webhook
+      - url: http://127.0.0.1:3456/api/alerts/webhook
         send_resolved: true
         http_sd_configs: []
         oauth2_config:
@@ -84,6 +85,14 @@ receivers:
 EOFCONFIG
 
 echo "   ✅ Configuração atualizada"
+
+# Install AlertManager templates (runbook)
+sudo mkdir -p /etc/alertmanager/templates
+sudo tee /etc/alertmanager/templates/runbook.tmpl > /dev/null <<'EOF_TPL'
+{{ define "alertmanager.runbook" }}Runbook: {{ .Annotations.runbook_url }}{{ end }}
+EOF_TPL
+sudo chown root:root /etc/alertmanager/templates/runbook.tmpl
+sudo chmod 644 /etc/alertmanager/templates/runbook.tmpl
 
 # 3. Validar configuração YAML
 echo ""
