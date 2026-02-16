@@ -1,0 +1,33 @@
+groups:
+  - name: homelab-advisor.rules
+    rules:
+      - alert: HomelabAdvisorMissingHeartbeat
+        expr: time() - advisor_heartbeat_timestamp > 300
+        for: 2m
+        labels:
+          severity: critical
+          service: homelab-advisor
+        annotations:
+          summary: "Homelab Advisor heartbeat missing"
+          description: "advisor_heartbeat_timestamp has not been updated for >5 minutes (sincelast: {{ $value }}s). Verify agent process and logs."
+          runbook_url: "https://your.docs/homelab-advisor#heartbeat-troubleshooting"
+      - alert: HomelabAdvisorNotRegistered
+        expr: advisor_api_registration_status == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: homelab-advisor
+        annotations:
+          summary: "Homelab Advisor not registered at API"
+          description: "advisor_api_registration_status == 0 for more than 5 minutes. Check network/API connectivity and IPC."
+          runbook_url: "https://your.docs/homelab-advisor#registration-failure"
+      - alert: HomelabAdvisorReportErrors
+        expr: increase(advisor_api_reports_total{status="error"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: homelab-advisor
+        annotations:
+          summary: "Homelab Advisor reporting errors"
+          description: "advisor_api_reports_total status=error increased in the last 5m. Check agent logs and API connectivity."
+          runbook_url: "https://your.docs/homelab-advisor#reporting-errors"
