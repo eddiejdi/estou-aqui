@@ -184,6 +184,14 @@ O backend agora estará:
 - ✅ Transmitindo via Socket.io no `/alerts`
 - ✅ Publicando no Agent Bus
 
+### Painel Grafana — saneamento de alertas
+- Novo painel `Active Prometheus Alerts` foi adicionado ao dashboard `homelab-copilot-agent` para visualizar alertas `firing` relacionados ao homelab e ao homelab-advisor.
+- Use o link `Open Alertmanager` no próprio painel para abrir o Alertmanager e silenciar/rever notificações rapidamente.
+- Boas práticas ao saneamento:
+  - Priorize alertas `critical` para investigação imediata; `warning` pode ser agrupado e avaliado durante manutenção.
+  - Ajuste `duration`/`thresholds` nas regras do Prometheus (em `/etc/prometheus/rules/`) em vez de apenas no dashboard — isso reduz ruído globalmente.
+  - Sempre documente alterações de regras em `ALERT_INTEGRATION_GUIDE.md` e revalide com um teste de integração (ex.: `tests/test_homelab_agent_registration.py`).
+
 ### Passo 3: Integrar no Frontend
 
 #### Para Web (React/Vue/Vanilla JS):
@@ -304,7 +312,7 @@ class AlertCard extends StatelessWidget {
 
 ## 📊 Alert Rules
 
-Atualmente, 4 regras monitorando:
+Atualmente, 4 regras monitorando (infra geral):
 
 | Alerta | Threshold | Severity | Duration |
 |--------|-----------|----------|----------|
@@ -314,6 +322,26 @@ Atualmente, 4 regras monitorando:
 | `HighMemoryUsage` | Memória > 85% | warning | 5 minutos |
 
 **Arquivo:** `/etc/prometheus/rules/homelab-alerts.yml`
+
+---
+
+### homelab-advisor (agent-specific rules)
+
+As regras do *Homelab Advisor* monitoram a disponibilidade e integridade do agente. Essas regras foram ajustadas para reduzir ruído — o `heartbeat` agora tolera até 5 minutos sem atualização e as regras incluem `runbook_url` para triagem rápida.
+
+| Alerta | Expressão / Trigger | Severity | For |
+|--------|---------------------|----------|-----|
+| `HomelabAdvisorMissingHeartbeat` | time() - advisor_heartbeat_timestamp > 300 | critical | 2m |
+| `HomelabAdvisorNotRegistered` | advisor_api_registration_status == 0 | warning | 5m |
+| `HomelabAdvisorReportErrors` | increase(advisor_api_reports_total{status="error"}[5m]) > 0 | warning | 5m |
+
+**Arquivo:** `/etc/prometheus/rules/homelab-advisor-alerts.yml`
+
+Notas:
+- `runbook_url` foi adicionado às anotações das regras para direcionar operadores às instruções de resolução.
+- Recomendação: não baixe o `heartbeat` para valores baixos (<2 min) em ambientes com possíveis GC/pauses — 5 minutos é um compromisso razoável para reduzir falsos positivos.
+- Após alterar regras, recarregue o Prometheus: `sudo systemctl reload prometheus` e verifique com `http://127.0.0.1:9090/api/v1/rules`.
+
 
 ---
 
@@ -389,7 +417,45 @@ socket.emit('alerts:request-active');
 
 ---
 
-## 🔗 Integration with Agent Bus
+## �️ Runbooks — Homelab Advisor
+
+### Heartbeat troubleshooting {#heartbeat-troubleshooting}
+- Symptom: `HomelabAdvisorMissingHeartbeat` firing.
+- Checar métricas:
+  - curl http://<homelab>:8085/metrics | grep advisor_heartbeat_timestamp
+  - Verifique se o valor foi atualizado recentemente (timestamp unix).
+- Logs e serviços:
+  - sudo journalctl -u homelab_copilot_agent -f
+  - docker ps / docker logs homelab-copilot-agent
+- Possíveis ações:
+  1. Reinicie o agent: `sudo systemctl restart homelab_copilot_agent`.
+  2. Se o agente estiver em container, confirme `API_BASE_URL` e conectividade ao host (`curl -sS http://172.17.0.1:8503/health`).
+  3. Aumente tolerância do heartbeat em Prometheus se o ambiente sofrer pausas ocasionalmente.
+
+### Registration failure {#registration-failure}
+- Symptom: `HomelabAdvisorNotRegistered` firing.
+- Checar métricas:
+  - curl http://<homelab>:8085/metrics | grep advisor_api_registration_status
+- Verificar IPC/API:
+  - curl -sS http://127.0.0.1:8503/health
+  - Confirme que o container tem a variável `API_BASE_URL` apontando para o host gateway (ex: `http://172.17.0.1:8503`).
+- Ações rápidas:
+  1. Ajuste systemd override para passar `API_BASE_URL` e reinicie o serviço.
+  2. Revise logs do agent para `Registrado na API principal via IPC`.
+
+### Reporting errors {#reporting-errors}
+- Symptom: `HomelabAdvisorReportErrors` firing.
+- Checar métricas:
+  - curl http://<homelab>:8085/metrics | grep advisor_api_reports_total
+- Logs:
+  - sudo journalctl -u homelab_copilot_agent -u -f | grep report
+- Ações:
+  1. Investigar payloads/Endpoints responsáveis por `status=error`.
+  2. Reprocessar falhas ou aplicar backoff/retry no agent se for transitório.
+
+---
+
+## �🔗 Integration with Agent Bus
 
 Alertas são automaticamente publicados no Agent Communication Bus:
 
