@@ -19,6 +19,7 @@ const ChatMessage = require('./ChatMessage')(sequelize);
 const CrowdEstimate = require('./CrowdEstimate')(sequelize);
 const Notification = require('./Notification')(sequelize);
 const TelegramGroup = require('./TelegramGroup')(sequelize);
+const BetaSignup = require('./BetaSignup')(sequelize);
 
 // Associações
 User.hasMany(Event, { foreignKey: 'organizerId', as: 'organizedEvents' });
@@ -55,4 +56,5 @@ module.exports = {
   CrowdEstimate,
   Notification,
   TelegramGroup,
+  BetaSignup,
 };
