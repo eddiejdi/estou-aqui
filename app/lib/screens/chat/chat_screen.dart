@@ -56,8 +56,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         .where((msg) => msg.eventId == widget.eventId)
         .listen((message) {
       if (mounted) {
-        setState(() => _messages.add(message));
-        _scrollToBottom();
+        // Deduplicação: só adiciona se o ID ainda não existir
+        final alreadyExists = _messages.any((m) => m.id == message.id);
+        if (!alreadyExists) {
+          setState(() => _messages.add(message));
+          _scrollToBottom();
+        }
       }
     });
   }

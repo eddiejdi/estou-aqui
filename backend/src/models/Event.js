@@ -115,6 +115,12 @@ module.exports = (sequelize) => {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
     },
+    // Coalizão — agrupa protestos da mesma causa
+    coalitionId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      comment: 'ID da coalizão/causa que agrupa este evento',
+    },
   }, {
     tableName: 'events',
     timestamps: true,

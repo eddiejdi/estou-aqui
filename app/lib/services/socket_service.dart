@@ -26,6 +26,13 @@ class SocketService {
   bool get isConnected => _socket?.connected ?? false;
 
   Future<void> connect() async {
+    // Desconectar socket anterior para evitar listeners duplicados
+    if (_socket != null) {
+      _socket!.disconnect();
+      _socket!.dispose();
+      _socket = null;
+    }
+
     final token = await _storage.read(key: AppConstants.tokenKey);
     if (token == null) return;
 

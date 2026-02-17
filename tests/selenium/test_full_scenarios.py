@@ -110,6 +110,8 @@ def api_tokens():
 def driver():
     """Cria driver Selenium com geolocalização de São Paulo."""
     from selenium import webdriver
+    from selenium.webdriver.chrome.service import Service
+
     options = webdriver.ChromeOptions()
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
@@ -121,7 +123,13 @@ def driver():
         "profile.default_content_setting_values.geolocation": 1,
     })
 
-    d = webdriver.Chrome(options=options)
+    # Use webdriver-manager se chromedriver não estiver no PATH
+    chromedriver_path = os.environ.get("CHROMEDRIVER_PATH")
+    if chromedriver_path:
+        service = Service(executable_path=chromedriver_path)
+        d = webdriver.Chrome(service=service, options=options)
+    else:
+        d = webdriver.Chrome(options=options)
 
     # Simular geolocalização: Av. Paulista, São Paulo
     try:
@@ -425,6 +433,86 @@ class TestAPIDataCreation:
         else:
             print(f"\n✅ Nenhum grupo Telegram ainda (esperado para novos eventos)")
 
+    # ============================================================
+    # CENÁRIOS 14-17: COALIZÃO (Agrupar protestos pela mesma causa)
+    # ============================================================
+
+    def test_14_create_coalition(self, api_tokens):
+        """Cenário 14: Criar coalizão — agrupar protestos pela mesma causa."""
+        token = api_tokens["carlos@estouaqui.test"]["token"]
+        coalition_data = {
+            "name": "Educação Para Todos",
+            "description": "Coalizão nacional pela valorização da educação pública de qualidade. "
+                          "Reunindo protestos, marchas e assembleias em defesa do ensino público.",
+            "hashtag": "#EducaçãoParaTodos",
+            "category": "educacao",
+            "tags": ["educação", "escola", "professor", "universidade"],
+        }
+        r = api_call("post", "/coalitions", token=token, json_data=coalition_data)
+        if r.status_code in [200, 201]:
+            coalition = r.json().get("coalition", r.json())
+            api_tokens["_coalition_educacao"] = coalition
+            print(f"\n✅ Coalizão criada: {coalition.get('name', 'N/A')} "
+                  f"(ID: {str(coalition.get('id', 'N/A'))[:8]}...)")
+        else:
+            print(f"\n⚠️  Criar coalizão retornou {r.status_code}: {r.text[:200]}")
+            # Tentar listar coalizões existentes como fallback
+            r2 = api_call("get", "/coalitions")
+            if r2.status_code == 200:
+                coalitions = r2.json().get("coalitions", r2.json())
+                if isinstance(coalitions, list) and coalitions:
+                    api_tokens["_coalition_educacao"] = coalitions[0]
+                    print(f"  ✅ Usando coalizão existente: {coalitions[0].get('name')}")
+
+    def test_15_list_coalitions(self, api_tokens):
+        """Cenário 15: Listar coalizões ativas."""
+        r = api_call("get", "/coalitions")
+        assert r.status_code == 200, f"Listar coalizões falhou: {r.status_code}"
+        data = r.json()
+        coalitions = data.get("coalitions", data) if isinstance(data, dict) else data
+        if isinstance(coalitions, list):
+            print(f"\n✅ {len(coalitions)} coalizões encontradas")
+            for c in coalitions[:5]:
+                print(f"  📢 {c.get('name', 'N/A')} — {c.get('hashtag', '')} "
+                      f"({c.get('totalEvents', 0)} eventos, "
+                      f"{c.get('totalAttendees', 0)} participantes)")
+
+    def test_16_join_event_to_coalition(self, api_tokens):
+        """Cenário 16: Vincular evento a uma coalizão."""
+        coalition = api_tokens.get("_coalition_educacao")
+        event = api_tokens.get("_event_manifestacao")
+        if not coalition or not event:
+            pytest.skip("Coalizão ou evento não criados")
+
+        token = api_tokens["carlos@estouaqui.test"]["token"]
+        coalition_id = coalition.get("id")
+        event_id = event.get("id")
+
+        r = api_call("post", f"/coalitions/{coalition_id}/join",
+                     token=token, json_data={"eventId": event_id})
+        if r.status_code in [200, 201]:
+            print(f"\n✅ Evento vinculado à coalizão: "
+                  f"{event.get('title', 'N/A')[:30]}... → {coalition.get('name')}")
+        else:
+            print(f"\n⚠️  Vincular retornou {r.status_code}: {r.text[:200]}")
+
+    def test_17_coalition_stats(self, api_tokens):
+        """Cenário 17: Obter estatísticas consolidadas da coalizão."""
+        coalition = api_tokens.get("_coalition_educacao")
+        if not coalition:
+            pytest.skip("Coalizão não criada")
+
+        coalition_id = coalition.get("id")
+        r = api_call("get", f"/coalitions/{coalition_id}/stats")
+        if r.status_code == 200:
+            stats = r.json()
+            print(f"\n✅ Estatísticas da coalizão:")
+            print(f"  📊 Eventos: {stats.get('totalEvents', 'N/A')}")
+            print(f"  👥 Participantes: {stats.get('totalAttendees', 'N/A')}")
+            print(f"  🏙  Cidades: {stats.get('totalCities', 'N/A')}")
+        else:
+            print(f"\n⚠️  Stats retornou {r.status_code}")
+
 
 # ===================================================================
 # PARTE 2: TESTES VISUAIS COM SELENIUM — Screenshots para Marketing
@@ -591,6 +679,54 @@ class TestWebUIScreenshots:
             _step_screenshot(driver, "mobile", f"0{i+2}_scroll_{i+1}")
 
         print(f"\n✅ Mobile responsive: frames capturados para GIF")
+
+    def test_29_coalitions_list(self, driver):
+        """Cenário 29: Tela de listagem de coalizões (Causas)."""
+        driver.get(f"{WEB_URL}/#/coalitions")
+        time.sleep(5)
+        _step_screenshot(driver, "coalitions", "01_list_loading")
+        time.sleep(3)
+        _step_screenshot(driver, "coalitions", "02_list_loaded")
+
+        driver.execute_script("window.scrollBy(0, 400)")
+        time.sleep(1)
+        _step_screenshot(driver, "coalitions", "03_list_scrolled")
+
+        page = driver.page_source
+        has_coalitions = any(t in page for t in ["Coalizão", "Causa", "Educação", "Saúde", "coalition"])
+        print(f"\n✅ Lista de coalizões — {'coalizões encontradas' if has_coalitions else 'pode estar vazia no web view'}")
+
+    def test_30_grafana_dashboard_public(self, driver):
+        """Cenário 30: Dashboard Grafana público (acesso apenas painéis de eventos)."""
+        grafana_url = "https://www.rpa4all.com/grafana/public-dashboards/20724d6938144eeba8287cfb475bcf52"
+        driver.get(grafana_url)
+        time.sleep(8)
+        _step_screenshot(driver, "grafana", "01_evento_dashboard")
+
+        driver.execute_script("window.scrollBy(0, 400)")
+        time.sleep(2)
+        _step_screenshot(driver, "grafana", "02_evento_panels")
+
+        driver.execute_script("window.scrollBy(0, 400)")
+        time.sleep(2)
+        _step_screenshot(driver, "grafana", "03_evento_bottom")
+        print(f"\n✅ Dashboard Grafana público de eventos capturado")
+
+    def test_31_grafana_coalition_dashboard(self, driver):
+        """Cenário 31: Dashboard Grafana de coalizão/visão nacional."""
+        grafana_url = "https://www.rpa4all.com/grafana/public-dashboards/eb027d48df8e4c948975669d3be5ac54"
+        driver.get(grafana_url)
+        time.sleep(8)
+        _step_screenshot(driver, "grafana_coalition", "01_national_view")
+
+        driver.execute_script("window.scrollBy(0, 400)")
+        time.sleep(2)
+        _step_screenshot(driver, "grafana_coalition", "02_charts")
+
+        driver.execute_script("window.scrollBy(0, 400)")
+        time.sleep(2)
+        _step_screenshot(driver, "grafana_coalition", "03_impact_table")
+        print(f"\n✅ Dashboard Grafana de coalizão/visão nacional capturado")
 
 
 # ===================================================================

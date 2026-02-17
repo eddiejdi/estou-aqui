@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import '../../models/event.dart';
 import '../../services/api_service.dart';
 import '../../services/location_service.dart';
+import '../../widgets/ad_banner_widget.dart';
 
 
 class EventsListScreen extends ConsumerStatefulWidget {
@@ -232,10 +233,18 @@ class _EventsListScreenState extends ConsumerState<EventsListScreen> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      itemCount: _events.length,
-      itemBuilder: (context, index) => _buildEventCard(_events[index]),
+    return Column(
+      children: [
+        const AdBannerWidget(isTop: true),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            itemCount: _events.length,
+            itemBuilder: (context, index) => _buildEventCard(_events[index]),
+          ),
+        ),
+        const AdBannerWidget(),
+      ],
     );
   }
 
