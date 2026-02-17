@@ -15,6 +15,7 @@ const chatRoutes = require('./routes/chat');
 const estimateRoutes = require('./routes/estimates');
 const notificationRoutes = require('./routes/notifications');
 const alertRoutes = require('./routes/alerts');
+const telegramGroupRoutes = require('./routes/telegram-groups');
 const setupSocket = require('./services/socket');
 const setupAlertSocket = require('./services/alert-socket');
 const AlertingService = require('./services/alerting');
@@ -73,6 +74,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/estimates', estimateRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/alerts', alertRoutes);
+app.use('/api/telegram-groups', telegramGroupRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

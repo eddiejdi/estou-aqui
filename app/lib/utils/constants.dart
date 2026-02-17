@@ -1,8 +1,8 @@
 /// Constantes da aplicação
 class AppConstants {
   // API
-  static const String apiBaseUrl = 'http://localhost:3000/api';
-  static const String wsUrl = 'http://localhost:3000';
+  static const String apiBaseUrl = 'https://estouaqui.rpa4all.com/api';
+  static const String wsUrl = 'https://estouaqui.rpa4all.com';
 
   // Storage keys
   static const String tokenKey = 'auth_token';

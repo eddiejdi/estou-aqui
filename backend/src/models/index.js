@@ -18,6 +18,7 @@ const Checkin = require('./Checkin')(sequelize);
 const ChatMessage = require('./ChatMessage')(sequelize);
 const CrowdEstimate = require('./CrowdEstimate')(sequelize);
 const Notification = require('./Notification')(sequelize);
+const TelegramGroup = require('./TelegramGroup')(sequelize);
 
 // Associações
 User.hasMany(Event, { foreignKey: 'organizerId', as: 'organizedEvents' });
@@ -41,6 +42,9 @@ CrowdEstimate.belongsTo(Event, { foreignKey: 'eventId', as: 'event' });
 User.hasMany(Notification, { foreignKey: 'userId', as: 'notifications' });
 Notification.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
+Event.hasMany(TelegramGroup, { foreignKey: 'eventId', as: 'telegramGroups' });
+TelegramGroup.belongsTo(Event, { foreignKey: 'eventId', as: 'event' });
+
 module.exports = {
   sequelize,
   Sequelize,
@@ -50,4 +54,5 @@ module.exports = {
   ChatMessage,
   CrowdEstimate,
   Notification,
+  TelegramGroup,
 };

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../models/event.dart';
 import '../../providers/app_providers.dart';
 import '../../services/location_service.dart';
@@ -147,6 +148,30 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                 if (event.endDate != null)
                   _infoRow(Icons.calendar_today, 'Término', dateFormat.format(event.endDate!)),
                 _infoRow(Icons.location_on, 'Local', event.locationDisplay),
+
+                // Botão "Ir para lá" — abre app de navegação
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, bottom: 16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _openNavigation(event),
+                      icon: const Icon(Icons.navigation, size: 22),
+                      label: const Text(
+                        'Ir para lá',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 3,
+                      ),
+                    ),
+                  ),
+                ),
+
                 if (event.organizer != null)
                   _infoRow(Icons.person, 'Organizador', event.organizer!.name),
                 const SizedBox(height: 24),
@@ -162,15 +187,8 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                   const SizedBox(height: 24),
                 ],
 
-                // Botão Chat
-                OutlinedButton.icon(
-                  onPressed: () => context.push('/chat/${widget.eventId}'),
-                  icon: const Icon(Icons.chat_bubble_outline),
-                  label: const Text('Chat do Evento'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(double.infinity, 48),
-                  ),
-                ),
+                // Botão Chat Telegram
+                _TelegramChatButton(eventId: widget.eventId),
                 const SizedBox(height: 40),
               ],
             ),
@@ -245,6 +263,253 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Abre app de navegação (Google Maps, Waze, etc.) com chooser do sistema
+  Future<void> _openNavigation(SocialEvent event) async {
+    final lat = event.latitude;
+    final lng = event.longitude;
+    final label = Uri.encodeComponent(event.title);
+
+    // geo: URI abre o chooser do sistema para o usuário escolher o app
+    final geoUri = Uri.parse('geo:$lat,$lng?q=$lat,$lng($label)');
+
+    // Fallback: Google Maps URL (funciona em qualquer plataforma)
+    final mapsUrl = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng',
+    );
+
+    try {
+      if (await canLaunchUrl(geoUri)) {
+        await launchUrl(geoUri);
+      } else if (await canLaunchUrl(mapsUrl)) {
+        await launchUrl(mapsUrl, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Nenhum app de navegação encontrado'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao abrir navegação: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+}
+
+/// Widget de botão para abrir/criar grupo Telegram do evento
+class _TelegramChatButton extends ConsumerStatefulWidget {
+  final String eventId;
+  const _TelegramChatButton({required this.eventId});
+
+  @override
+  ConsumerState<_TelegramChatButton> createState() => _TelegramChatButtonState();
+}
+
+class _TelegramChatButtonState extends ConsumerState<_TelegramChatButton> {
+  bool _isLoading = false;
+  List<Map<String, dynamic>> _groups = [];
+  bool _hasLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGroups();
+  }
+
+  Future<void> _loadGroups() async {
+    try {
+      final api = ref.read(apiServiceProvider);
+      final data = await api.getTelegramGroups(widget.eventId);
+      if (mounted) {
+        setState(() {
+          _groups = List<Map<String, dynamic>>.from(data['groups'] ?? []);
+          _hasLoaded = true;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _hasLoaded = true);
+    }
+  }
+
+  Future<void> _joinGroup() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final api = ref.read(apiServiceProvider);
+      final data = await api.joinTelegramGroup(widget.eventId);
+
+      if (!mounted) return;
+
+      if (data['success'] == true) {
+        final group = data['group'] as Map<String, dynamic>;
+        final inviteLink = group['inviteLink'] as String?;
+
+        if (inviteLink != null && inviteLink.startsWith('http')) {
+          final uri = Uri.parse(inviteLink);
+          if (await canLaunchUrl(uri)) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(data['message'] as String? ?? 'Grupo disponível!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        _loadGroups();
+      } else if (data['needsManualSetup'] == true) {
+        _showManualSetupDialog();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _showManualSetupDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        final linkController = TextEditingController();
+        return AlertDialog(
+          title: const Text('Vincular Grupo Telegram'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Crie um grupo no Telegram e cole o link de convite abaixo:'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: linkController,
+                decoration: const InputDecoration(
+                  hintText: 'https://t.me/+...',
+                  labelText: 'Link de convite',
+                  prefixIcon: Icon(Icons.link),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final link = linkController.text.trim();
+                if (link.isEmpty) return;
+                Navigator.pop(ctx);
+                try {
+                  final api = ref.read(apiServiceProvider);
+                  await api.linkTelegramGroup(widget.eventId, inviteLink: link);
+                  _loadGroups();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Grupo vinculado!'), backgroundColor: Colors.green),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              },
+              child: const Text('Vincular'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _openGroup(String inviteLink) async {
+    final uri = Uri.parse(inviteLink);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: 48,
+          child: ElevatedButton.icon(
+            onPressed: _isLoading ? null : _joinGroup,
+            icon: _isLoading
+                ? const SizedBox(
+                    width: 20, height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  )
+                : const Icon(Icons.telegram, size: 24),
+            label: Text(
+              _groups.isEmpty ? 'Abrir Chat no Telegram' : 'Entrar no Grupo Telegram',
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0088CC),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+        if (_groups.length > 1) ...[
+          const SizedBox(height: 8),
+          Text(
+            '${_groups.length} grupos disponíveis',
+            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+          ),
+          const SizedBox(height: 4),
+          ..._groups.map((g) => Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: OutlinedButton.icon(
+              onPressed: () => _openGroup(g['inviteLink'] as String),
+              icon: const Icon(Icons.group, size: 18),
+              label: Row(
+                children: [
+                  Expanded(child: Text(g['title'] as String? ?? 'Grupo')),
+                  Text(
+                    '${g['memberCount'] ?? 0} membros',
+                    style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                  ),
+                  if (g['isFull'] == true) ...[
+                    const SizedBox(width: 4),
+                    const Icon(Icons.warning, size: 14, color: Colors.orange),
+                  ],
+                ],
+              ),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 40),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+              ),
+            ),
+          )),
+        ],
+      ],
     );
   }
 }

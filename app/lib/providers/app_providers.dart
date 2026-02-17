@@ -66,7 +66,8 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
     try {
       // No web, o clientId vem da meta tag google-signin-client_id no index.html
       // No mobile, passamos explicitamente
-      const webClientId = '666885877649-uhl98kcch60l4cqctt2e347nhlhsqta5.apps.googleusercontent.com';
+      // Web client (client_type 3) do google-services.json
+      const webClientId = '666885877649-dcdb7lcp35a1v576r6ip7p050c074hs7.apps.googleusercontent.com';
       
       final google = GoogleSignIn(
         scopes: ['email', 'profile'],
