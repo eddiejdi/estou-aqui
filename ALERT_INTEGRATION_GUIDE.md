@@ -474,6 +474,7 @@ socket.emit('alerts:request-active');
 - Verificar IPC/API:
   - curl -sS http://127.0.0.1:8503/health
   - Confirme que o container tem a variável `API_BASE_URL` apontando para o host gateway (ex: `http://172.17.0.1:8503`).
+  - Se o backend estiver rodando em container, defina `AGENT_BUS_URL=http://172.17.0.1:8503` para garantir que os webhooks sejam publicados no mesmo Agent Bus que os agentes consultam.
 - Ações rápidas:
   1. Ajuste systemd override para passar `API_BASE_URL` e reinicie o serviço.
   2. Revise logs do agent para `Registrado na API principal via IPC`.
