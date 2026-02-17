@@ -20,6 +20,8 @@ const CrowdEstimate = require('./CrowdEstimate')(sequelize);
 const Notification = require('./Notification')(sequelize);
 const TelegramGroup = require('./TelegramGroup')(sequelize);
 const BetaSignup = require('./BetaSignup')(sequelize);
+const Coalition = require('./Coalition')(sequelize);
+const WebChatMessage = require('./WebChatMessage')(sequelize);
 
 // Associações
 User.hasMany(Event, { foreignKey: 'organizerId', as: 'organizedEvents' });
@@ -46,6 +48,12 @@ Notification.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 Event.hasMany(TelegramGroup, { foreignKey: 'eventId', as: 'telegramGroups' });
 TelegramGroup.belongsTo(Event, { foreignKey: 'eventId', as: 'event' });
 
+// Coalizão — agrupa eventos da mesma causa
+User.hasMany(Coalition, { foreignKey: 'creatorId', as: 'coalitions' });
+Coalition.belongsTo(User, { foreignKey: 'creatorId', as: 'creator' });
+Coalition.hasMany(Event, { foreignKey: 'coalitionId', as: 'events' });
+Event.belongsTo(Coalition, { foreignKey: 'coalitionId', as: 'coalition' });
+
 module.exports = {
   sequelize,
   Sequelize,
@@ -57,4 +65,6 @@ module.exports = {
   Notification,
   TelegramGroup,
   BetaSignup,
+  Coalition,
+  WebChatMessage,
 };
