@@ -36,7 +36,7 @@ jobs:
 
   flutter-build:
     name: Flutter Build Check
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, homelab]
     permissions:
       contents: read
 
