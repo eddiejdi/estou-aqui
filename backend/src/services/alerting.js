@@ -181,7 +181,12 @@ class AlertingService {
       // Tenta importar o bus de agentes se disponível
       // Este é um serviço remoto em :8503
       const axios = require('axios');
-      const busUrl = process.env.AGENT_BUS_URL || 'http://localhost:8503';
+      const configured = process.env.AGENT_BUS_URL && process.env.AGENT_BUS_URL.trim();
+      // Try common endpoints (container host-gateway first, then localhost)
+      const candidates = [];
+      if (configured) candidates.push(configured);
+      candidates.push('http://172.17.0.1:8503');
+      candidates.push('http://127.0.0.1:8503');
 
       for (const alert of alerts) {
         const message = {
@@ -199,29 +204,40 @@ class AlertingService {
           }
         };
 
-        // Enviar assincronamente sem bloquear
-        axios.post(`${busUrl}/communication/publish`, message)
-          .then(res => {
-            // Increment metric on successful publish (non-blocking)
+        // Tenta publicar no primeiro endpoint disponível (não bloqueante)
+        (async () => {
+          let published = false;
+          for (const base of candidates) {
             try {
-              if (alertsPublishedCounter) {
-                alertsPublishedCounter.inc({ source: message.source || 'estou-aqui-backend', severity: alert.severity || 'unknown' }, 1);
-              }
-            } catch (mErr) {
-              logger.warn('Could not update alerts_published metric', { error: mErr.message });
-            }
+              const res = await axios.post(`${base}/communication/publish`, message, { timeout: 3000 });
 
-            logger.info('Alert published to bus', {
-              alert: alert.name,
-              messageId: res.data && res.data.message_id
-            });
-          })
-          .catch(err => {
-            logger.warn('Could not publish to bus', {
-              alert: alert.name,
-              error: err.message
-            });
-          });
+              // Increment metric on successful publish (non-blocking)
+              try {
+                if (alertsPublishedCounter) {
+                  alertsPublishedCounter.inc({ source: message.source || 'estou-aqui-backend', severity: alert.severity || 'unknown' }, 1);
+                }
+              } catch (mErr) {
+                logger.warn('Could not update alerts_published metric', { error: mErr.message });
+              }
+
+              logger.info('Alert published to bus', {
+                alert: alert.name,
+                via: base,
+                messageId: res.data && res.data.message_id
+              });
+
+              published = true;
+              break;
+            } catch (err) {
+              logger.debug('Publish to bus failed, trying next candidate', { candidate: base, err: err.message });
+              continue;
+            }
+          }
+
+          if (!published) {
+            logger.warn('Could not publish alert to any agent-bus candidate', { alert: alert.name });
+          }
+        })();
       }
     } catch (error) {
       logger.warn('Bus integration unavailable (non-blocking)', {

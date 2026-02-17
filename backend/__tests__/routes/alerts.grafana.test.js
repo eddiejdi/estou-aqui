@@ -3,6 +3,8 @@ const request = require('supertest');
 
 jest.mock('axios');
 const axios = require('axios');
+// Ensure publish resolves in tests so alerting._publishToBus logs success path
+axios.post = jest.fn().mockResolvedValue({ data: { message_id: 'msg_test' } });
 
 // Mock the models to avoid real DB connection when server starts
 jest.mock('../../src/models', () => ({
@@ -61,5 +63,12 @@ describe('POST /api/alerts/grafana-webhook', () => {
     const active = alertingService.getActiveAlerts();
     console.log('DEBUG activeAlerts (test):', active);
     expect(active.some(a => a.name === 'HighMemoryUsage' || a.name === 'High memory usage')).toBe(true);
+
+    // Verify we attempted to publish to the agent bus (fallback candidate should be tried)
+    expect(axios.post).toHaveBeenCalled();
+    const calledUrl = axios.post.mock.calls[0][0];
+    expect(calledUrl).toMatch(/communication\/publish$/);
+    // should attempt host-gateway candidate when AGENT_BUS_URL is not configured
+    expect(calledUrl).toMatch(/(172\.17\.0\.1:8503|127\.0\.0\.1:8503|localhost:8503)/);
   });
 });

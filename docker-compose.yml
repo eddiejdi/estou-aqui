@@ -37,6 +37,8 @@ services:
       - DB_PASSWORD=estou_aqui_dev_2026
       - JWT_SECRET=dev_jwt_secret_change_in_production
       - GOOGLE_CLIENT_ID=666885877649-uhl98kcch60l4cqctt2e347nhlhsqta5.apps.googleusercontent.com
+      # Agent Bus host (use Docker host gateway so container can reach the API on the host)
+      - AGENT_BUS_URL=http://172.17.0.1:8503
     depends_on:
       postgres:
         condition: service_healthy
