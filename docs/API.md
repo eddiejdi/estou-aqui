@@ -166,3 +166,43 @@ const socket = io('http://localhost:3000', {
 | checkout         | { eventId, activeCheckins }                |
 | estimate:updated | { eventId, estimatedAttendees, method... } |
 | event:status     | { eventId, status }                        |
+
+---
+
+## Performance e Tuning
+
+### Capacidade estimada (infraestrutura atual — homelab)
+
+| Componente | Configuração |
+|---|---|
+| **CPU** | Intel i9-9900T (16 threads) @ 2.10 GHz |
+| **RAM** | 32 GB |
+| **Backend** | Node.js single-thread (Express + Socket.IO) |
+| **DB** | PostgreSQL 16 (Docker), `max_connections = 100` |
+| **Sequelize pool** | `max: 20`, `min: 2`, `acquire: 30s`, `idle: 10s` |
+| **Proxy** | Cloudflare Tunnel (TLS na edge) |
+
+**Throughput estimado: ~3.000–6.000 req/min** (single process)
+
+### Pool de conexões (Sequelize)
+
+Configurado em `src/config/database.js`:
+
+| Ambiente | `max` | `min` | `acquire` | `idle` |
+|---|---|---|---|---|
+| development | 20 | 2 | 30s | 10s |
+| test | 5 | 1 | 30s | 10s |
+| production | 20 | 5 | 30s | 10s |
+
+### Logging (Morgan)
+
+- **Development**: `morgan('dev')` — log colorido completo
+- **Production**: `morgan('combined')` — formato Apache, skip `/health`
+
+### Escalabilidade futura
+
+| Ação | Ganho | Esforço |
+|---|---|---|
+| `pm2 cluster` (8 workers) | +400–700% | 5 min |
+| Redis cache para eventos | +200% | 2h |
+| PgBouncer (connection pooler) | +50% | 30 min |

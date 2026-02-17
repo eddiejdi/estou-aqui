@@ -68,6 +68,10 @@ class SocialEvent extends Equatable {
   final String? address;
   final String? city;
   final String? state;
+  // Ponto de chegada (passeatas/marchas)
+  final double? endLatitude;
+  final double? endLongitude;
+  final String? endAddress;
   final DateTime startDate;
   final DateTime? endDate;
   final EventStatus status;
@@ -90,6 +94,9 @@ class SocialEvent extends Equatable {
     this.address,
     this.city,
     this.state,
+    this.endLatitude,
+    this.endLongitude,
+    this.endAddress,
     required this.startDate,
     this.endDate,
     this.status = EventStatus.scheduled,
@@ -114,6 +121,9 @@ class SocialEvent extends Equatable {
       address: json['address'] as String?,
       city: json['city'] as String?,
       state: json['state'] as String?,
+      endLatitude: (json['endLatitude'] as num?)?.toDouble(),
+      endLongitude: (json['endLongitude'] as num?)?.toDouble(),
+      endAddress: json['endAddress'] as String?,
       startDate: json['startDate'] != null ? DateTime.parse(json['startDate'] as String) : DateTime.now(),
       endDate: json['endDate'] != null ? DateTime.parse(json['endDate'] as String) : null,
       status: EventStatus.values.firstWhere(
@@ -140,6 +150,9 @@ class SocialEvent extends Equatable {
     'address': address,
     'city': city,
     'state': state,
+    'endLatitude': endLatitude,
+    'endLongitude': endLongitude,
+    'endAddress': endAddress,
     'startDate': startDate.toIso8601String(),
     'endDate': endDate?.toIso8601String(),
     'tags': tags,
@@ -148,6 +161,17 @@ class SocialEvent extends Equatable {
 
   bool get isActive => status == EventStatus.active;
   bool get isUpcoming => status == EventStatus.scheduled && startDate.isAfter(DateTime.now());
+
+  /// Evento é passeata/marcha (tem ponto de chegada)
+  bool get isMarcha => endLatitude != null && endLongitude != null;
+
+  String get endLocationDisplay {
+    if (endAddress != null) return endAddress!;
+    if (endLatitude != null && endLongitude != null) {
+      return '${endLatitude!.toStringAsFixed(4)}, ${endLongitude!.toStringAsFixed(4)}';
+    }
+    return 'Não definido';
+  }
 
   String get locationDisplay {
     if (address != null) return address!;

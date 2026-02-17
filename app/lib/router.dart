@@ -8,6 +8,7 @@ import 'screens/home/home_screen.dart';
 import 'screens/map/map_screen.dart';
 import 'screens/event/event_detail_screen.dart';
 import 'screens/event/create_event_screen.dart';
+import 'screens/event/events_list_screen.dart';
 import 'screens/chat/chat_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
@@ -37,7 +38,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/events',
-            builder: (context, state) => const MapScreen(), // Feed integrado ao mapa
+            builder: (context, state) => const EventsListScreen(),
           ),
           GoRoute(
             path: '/notifications',

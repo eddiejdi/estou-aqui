@@ -280,4 +280,23 @@ class ApiService {
   Future<void> markAllNotificationsRead() async {
     await _dio.put('/notifications/read-all');
   }
+
+  // ─── Telegram Groups ─────────────────────────────────
+  Future<Map<String, dynamic>> joinTelegramGroup(String eventId) async {
+    final response = await _dio.post('/telegram-groups/$eventId/join');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getTelegramGroups(String eventId) async {
+    final response = await _dio.get('/telegram-groups/$eventId');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> linkTelegramGroup(String eventId, {String? chatId, required String inviteLink}) async {
+    final response = await _dio.post('/telegram-groups/$eventId/link', data: {
+      if (chatId != null) 'chatId': chatId,
+      'inviteLink': inviteLink,
+    });
+    return response.data;
+  }
 }
