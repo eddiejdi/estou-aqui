@@ -56,4 +56,26 @@ class GeocodeService {
     } catch (_) {}
     return null;
   }
+
+  /// Forward geocode: endereço → coordenadas (Nominatim)
+  Future<Map<String, double>?> geocodeAddress(String address) async {
+    try {
+      final res = await _dio.get('https://nominatim.openstreetmap.org/search', queryParameters: {
+        'format': 'jsonv2',
+        'q': address,
+        'limit': 1,
+        'countrycodes': 'br',
+      }, options: Options(headers: {'User-Agent': 'EstouAquiApp/1.0'}));
+
+      if (res.statusCode == 200 && res.data is List && (res.data as List).isNotEmpty) {
+        final item = (res.data as List).first as Map<String, dynamic>;
+        final lat = double.tryParse(item['lat']?.toString() ?? '');
+        final lng = double.tryParse(item['lon']?.toString() ?? '');
+        if (lat != null && lng != null) {
+          return {'latitude': lat, 'longitude': lng};
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
 }

@@ -149,6 +149,32 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                   _infoRow(Icons.calendar_today, 'Término', dateFormat.format(event.endDate!)),
                 _infoRow(Icons.location_on, 'Local', event.locationDisplay),
 
+                // Percurso da passeata (início → fim)
+                if (event.isMarcha) ...[
+                  _infoRow(Icons.flag, 'Chegada', event.endLocationDisplay),
+                  // Botão para ver percurso completo no mapa
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4, bottom: 8),
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _openRoute(event),
+                        icon: const Icon(Icons.route, size: 20),
+                        label: const Text(
+                          'Ver percurso completo',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryColor,
+                          side: const BorderSide(color: AppTheme.primaryColor),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+
                 // Botão "Ir para lá" — abre app de navegação
                 Padding(
                   padding: const EdgeInsets.only(top: 4, bottom: 16),
@@ -264,6 +290,48 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
         ],
       ),
     );
+  }
+
+  /// Abre percurso completo da passeata (ponto A → ponto B) no Google Maps
+  Future<void> _openRoute(SocialEvent event) async {
+    if (event.endLatitude == null || event.endLongitude == null) return;
+
+    final originLat = event.latitude;
+    final originLng = event.longitude;
+    final destLat = event.endLatitude!;
+    final destLng = event.endLongitude!;
+
+    // Google Maps directions URL com origem e destino + modo a pé
+    final mapsUrl = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1'
+      '&origin=$originLat,$originLng'
+      '&destination=$destLat,$destLng'
+      '&travelmode=walking',
+    );
+
+    try {
+      if (await canLaunchUrl(mapsUrl)) {
+        await launchUrl(mapsUrl, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Nenhum app de mapas encontrado'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao abrir mapa: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   /// Abre app de navegação (Google Maps, Waze, etc.) com chooser do sistema

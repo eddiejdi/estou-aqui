@@ -23,12 +23,16 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
   final _cityController = TextEditingController();
   final _cepController = TextEditingController();
   final _areaController = TextEditingController();
+  final _endAddressController = TextEditingController();
+  final _endCepController = TextEditingController();
 
   EventCategory _category = EventCategory.manifestacao;
   DateTime _startDate = DateTime.now().add(const Duration(hours: 1));
   DateTime? _endDate;
   double? _latitude;
   double? _longitude;
+  double? _endLatitude;
+  double? _endLongitude;
   bool _isLoading = false;
   bool _useCurrentLocation = true;
 
@@ -37,6 +41,7 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     super.initState();
     _getCurrentLocation();
     _cepController.addListener(_onCepChanged);
+    _endCepController.addListener(_onEndCepChanged);
   }
 
   Future<void> _getCurrentLocation() async {
@@ -75,6 +80,9 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
     _cepController.removeListener(_onCepChanged);
     _cepController.dispose();
     _areaController.dispose();
+    _endAddressController.dispose();
+    _endCepController.removeListener(_onEndCepChanged);
+    _endCepController.dispose();
     super.dispose();
   }
 
@@ -97,6 +105,63 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         if (city.isNotEmpty) _cityController.text = city;
       }
     } catch (_) {}
+  }
+
+  void _onEndCepChanged() {
+    final text = _endCepController.text;
+    final digits = text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length == 8) {
+      _lookupEndCep(digits);
+    }
+  }
+
+  Future<void> _lookupEndCep(String cep) async {
+    try {
+      final geocode = ref.read(geocodeServiceProvider);
+      final res = await geocode.lookupCep(cep);
+      if (res != null && mounted) {
+        final String address = (res['address'] ?? '') as String;
+        if (address.isNotEmpty) _endAddressController.text = address;
+        // Tentar geocodificar para obter lat/lng
+        final coords = await geocode.geocodeAddress(address);
+        if (coords != null && mounted) {
+          setState(() {
+            _endLatitude = coords['latitude'] as double?;
+            _endLongitude = coords['longitude'] as double?;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _geocodeEndAddress() async {
+    final address = _endAddressController.text.trim();
+    if (address.isEmpty) return;
+    try {
+      final geocode = ref.read(geocodeServiceProvider);
+      final coords = await geocode.geocodeAddress(address);
+      if (coords != null && mounted) {
+        setState(() {
+          _endLatitude = coords['latitude'] as double?;
+          _endLongitude = coords['longitude'] as double?;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Local de chegada encontrado!'), backgroundColor: Colors.green),
+        );
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Endereço não encontrado'), backgroundColor: Colors.orange),
+          );
+        }
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erro ao buscar endereço'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   Future<void> _selectDate(bool isStart) async {
@@ -147,6 +212,9 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
         'startDate': _startDate.toIso8601String(),
         if (_endDate != null) 'endDate': _endDate!.toIso8601String(),
         if (_areaController.text.isNotEmpty) 'areaSquareMeters': double.tryParse(_areaController.text),
+        if (_endLatitude != null) 'endLatitude': _endLatitude,
+        if (_endLongitude != null) 'endLongitude': _endLongitude,
+        if (_endAddressController.text.trim().isNotEmpty) 'endAddress': _endAddressController.text.trim(),
       };
 
       final result = await api.createEvent(data);
@@ -254,6 +322,64 @@ class _CreateEventScreenState extends ConsumerState<CreateEventScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // ── Local de chegada (passeatas/marchas) ──
+              if (_category == EventCategory.marcha ||
+                  _category == EventCategory.manifestacao ||
+                  _category == EventCategory.protesto) ...[
+                const Divider(height: 32),
+                Row(
+                  children: [
+                    const Icon(Icons.flag, color: AppTheme.primaryColor),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Local de Chegada (passeata)',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    if (_endLatitude != null)
+                      const Icon(Icons.check_circle, color: Colors.green, size: 20),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Preencha se o evento tem percurso (ex: passeata, marcha)',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _endCepController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'CEP do local de chegada (opcional)',
+                    prefixIcon: Icon(Icons.local_post_office),
+                    helperText: 'Digite o CEP para preencher automaticamente',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _endAddressController,
+                  decoration: InputDecoration(
+                    labelText: 'Endereço de chegada',
+                    prefixIcon: const Icon(Icons.flag),
+                    suffixIcon: _endAddressController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.search),
+                            onPressed: _geocodeEndAddress,
+                          )
+                        : null,
+                  ),
+                ),
+                if (_endLatitude != null && _endLongitude != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '📍 ${_endLatitude!.toStringAsFixed(4)}, ${_endLongitude!.toStringAsFixed(4)}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  ),
+                ],
+                const Divider(height: 32),
+              ],
 
               // Localização
               SwitchListTile(
