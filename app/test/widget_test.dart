@@ -7,17 +7,24 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:estou_aqui/main.dart';
 
 void main() {
-  testWidgets('App builds and basic widgets present', (WidgetTester tester) async {
-    // Build a minimal app (avoid SplashScreen startup timers) and trigger a frame.
-    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: Center(child: Text('smoke')))));
+  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
+    // Build our app and trigger a frame.
+    await tester.pumpWidget(const My
 
-    // Basic smoke checks: material app boots in the test environment
-    expect(find.byType(MaterialApp), findsOneWidget);
-    expect(find.text('smoke'), findsOneWidget);
+    // Verify that our counter starts at 0.
+    expect(find.text('0'), findsOneWidget);
+    expect(find.text('1'), findsNothing);
+
+    // Tap the '+' icon and trigger a frame.
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pump();
+
+    // Verify that our counter has incremented.
+    expect(find.text('0'), findsNothing);
+    expect(find.text('1'), findsOneWidget);
   });
 }

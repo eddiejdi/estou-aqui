@@ -57,30 +57,30 @@ receivers:
         send_resolved: true
         http_sd_configs: []
         oauth2_config:
-          client_id: ''
-          client_secret: ''
+          client_id: 'SECRETS_AGENT_CLIENT_ID'
+          client_secret: 'SECRETS_AGENT_CLIENT_SECRET'
           endpoint_params: {}
           scopes: []
-          token_url: ''
+          token_url: 'SECRETS_AGENT_TOKEN_URL'
         proxy_url: ''
         tls_config:
           insecure_skip_verify: false
-        bearer_token: ''
+        bearer_token: 'SECRETS_AGENT_BEARER_TOKEN'
         bearer_token_file: ''
       # Webhook para o Estou Aqui Backend (Real-time alerts nos painéis)
       - url: http://127.0.0.1:3456/api/alerts/webhook
         send_resolved: true
         http_sd_configs: []
         oauth2_config:
-          client_id: ''
-          client_secret: ''
+          client_id: 'SECRETS_AGENT_CLIENT_ID'
+          client_secret: 'SECRETS_AGENT_CLIENT_SECRET'
           endpoint_params: {}
           scopes: []
-          token_url: ''
+          token_url: 'SECRETS_AGENT_TOKEN_URL'
         proxy_url: ''
         tls_config:
           insecure_skip_verify: false
-        bearer_token: ''
+        bearer_token: 'SECRETS_AGENT_BEARER_TOKEN'
         bearer_token_file: ''
 EOFCONFIG
 

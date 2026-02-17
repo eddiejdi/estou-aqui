@@ -1,0 +1,83 @@
+{
+  "dashboard": {
+    "uid": "estou-aqui-coalizao",
+    "title": "Estou Aqui - Visão Nacional (Coalizão)",
+    "tags": ["estou-aqui", "coalizao", "nacional"],
+    "timezone": "browser",
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "type": "stat",
+        "title": "Total de Eventos Ativos",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+        "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": null }] } } },
+        "targets": [{ "rawSql": "SELECT COUNT(*) FROM events WHERE status = 'active'", "refId": "A", "format": "table" }],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 2,
+        "type": "stat",
+        "title": "Total de Participantes",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+        "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "blue", "value": null }] } } },
+        "targets": [{ "rawSql": "SELECT SUM(confirmed_attendees) FROM events WHERE status IN ('active', 'ended')", "refId": "A", "format": "table" }],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 3,
+        "type": "stat",
+        "title": "Cidades com Eventos",
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+        "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "orange", "value": null }] } } },
+        "targets": [{ "rawSql": "SELECT COUNT(DISTINCT city) FROM events WHERE city IS NOT NULL", "refId": "A", "format": "table" }],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 4,
+        "type": "stat",
+        "title": "Coalizões Ativas",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+        "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "purple", "value": null }] } } },
+        "targets": [{ "rawSql": "SELECT COUNT(*) FROM coalitions WHERE status = 'active'", "refId": "A", "format": "table" }],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 5,
+        "type": "timeseries",
+        "title": "Eventos Criados por Dia",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+        "targets": [{ "rawSql": "SELECT date_trunc('day', created_at) as time, COUNT(*) as eventos FROM events GROUP BY 1 ORDER BY 1", "refId": "A", "format": "time_series" }],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 6,
+        "type": "barchart",
+        "title": "Participantes por Cidade (Top 10)",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+        "targets": [{ "rawSql": "SELECT city, SUM(confirmed_attendees) as participantes FROM events WHERE city IS NOT NULL GROUP BY city ORDER BY participantes DESC LIMIT 10", "refId": "A", "format": "table" }],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 7,
+        "type": "piechart",
+        "title": "Eventos por Categoria",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+        "targets": [{ "rawSql": "SELECT category, COUNT(*) as total FROM events GROUP BY category ORDER BY total DESC", "refId": "A", "format": "table" }],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 8,
+        "type": "table",
+        "title": "Coalizões com Maior Impacto",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+        "targets": [{ "rawSql": "SELECT c.name, c.hashtag, c.total_events, c.total_attendees, c.total_cities FROM coalitions c WHERE c.status = 'active' ORDER BY c.total_attendees DESC LIMIT 10", "refId": "A", "format": "table" }],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      }
+    ],
+    "schemaVersion": 39,
+    "version": 1
+  },
+  "folderUid": "estou-aqui-eventos",
+  "overwrite": true
+}
