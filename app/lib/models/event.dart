@@ -81,6 +81,7 @@ class SocialEvent extends Equatable {
   final User? organizer;
   final List<String> tags;
   final bool isVerified;
+  final String? coalitionId;
   final DateTime createdAt;
 
   const SocialEvent({
@@ -106,6 +107,7 @@ class SocialEvent extends Equatable {
     this.organizer,
     this.tags = const [],
     this.isVerified = false,
+    this.coalitionId,
     required this.createdAt,
   });
 
@@ -136,6 +138,7 @@ class SocialEvent extends Equatable {
       organizer: json['organizer'] != null ? User.fromJson(json['organizer']) : null,
       tags: (json['tags'] as List<dynamic>?)?.cast<String>() ?? [],
       isVerified: json['isVerified'] as bool? ?? false,
+      coalitionId: json['coalitionId'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }
@@ -157,6 +160,7 @@ class SocialEvent extends Equatable {
     'endDate': endDate?.toIso8601String(),
     'tags': tags,
     'areaSquareMeters': areaSquareMeters,
+    'coalitionId': coalitionId,
   };
 
   bool get isActive => status == EventStatus.active;

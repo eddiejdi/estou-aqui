@@ -299,4 +299,34 @@ class ApiService {
     });
     return response.data;
   }
+
+  // ─── Coalizões ────────────────────────────────────────
+  Future<Map<String, dynamic>> getCoalitions({String status = 'active', int page = 1}) async {
+    final response = await _dio.get('/coalitions', queryParameters: {
+      'status': status, 'page': page,
+    });
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getCoalition(String id) async {
+    final response = await _dio.get('/coalitions/$id');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> createCoalition(Map<String, dynamic> data) async {
+    final response = await _dio.post('/coalitions', data: data);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> joinCoalition(String coalitionId, String eventId) async {
+    final response = await _dio.post('/coalitions/$coalitionId/join', data: {
+      'eventId': eventId,
+    });
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getCoalitionStats(String coalitionId) async {
+    final response = await _dio.get('/coalitions/$coalitionId/stats');
+    return response.data;
+  }
 }

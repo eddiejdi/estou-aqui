@@ -15,7 +15,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentIndex = 0;
 
-  static const _routes = ['/map', '/events', '/notifications', '/profile'];
+  static const _routes = ['/map', '/events', '/coalitions', '/notifications', '/profile'];
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +39,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             icon: Icon(Icons.event_outlined),
             selectedIcon: Icon(Icons.event),
             label: 'Eventos',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.groups_outlined),
+            selectedIcon: Icon(Icons.groups),
+            label: 'Causas',
           ),
           NavigationDestination(
             icon: Badge(
