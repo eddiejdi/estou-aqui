@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -100,9 +101,23 @@ if (promClient) {
   });
 }
 
-// 404
-app.use((req, res) => {
+// Servir arquivos estáticos do Flutter web build
+const publicPath = path.join(__dirname, '..', 'public');
+app.use(express.static(publicPath));
+
+// 404 para rotas da API
+app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Rota não encontrada' });
+});
+
+// SPA fallback — rotas não-API servem index.html (Flutter web)
+app.use((req, res) => {
+  const indexPath = path.join(publicPath, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      res.status(404).json({ error: 'Rota não encontrada' });
+    }
+  });
 });
 
 // Error handler
