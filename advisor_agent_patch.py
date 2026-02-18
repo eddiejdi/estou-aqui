@@ -241,6 +241,18 @@ class HomelabAdvisor:
         
         # IPC via PostgreSQL
         self.ipc_ready = False
+        # diagnostic info for health checks when IPC is not available
+        self.ipc_init_error: Optional[str] = None
+        self.ipc_diag: Dict[str, Any] = {}
+
+        def _tcp_check(host: str, port: int, timeout: float = 0.8) -> bool:
+            import socket
+            try:
+                with socket.create_connection((host, port), timeout=timeout):
+                    return True
+            except Exception:
+                return False
+
         if IPC_AVAILABLE and self.database_url:
             try:
                 init_table()
@@ -248,12 +260,70 @@ class HomelabAdvisor:
                 advisor_ipc_ready.set(1)
                 logger.info("✅ IPC table initialized (PostgreSQL)")
             except Exception as e:
+                # collect diagnostics and keep IPC disabled
                 self.ipc_ready = False
                 advisor_ipc_ready.set(0)
+                self.ipc_init_error = str(e)
                 logger.warning(f"IPC init failed: {e}")
+
+                # try to detect reachable candidate hosts to help troubleshooting
+                try:
+                    from urllib.parse import urlparse
+                    parsed = urlparse(self.database_url)
+                    host = parsed.hostname
+                    port = parsed.port or 5432
+                except Exception:
+                    host = None
+                    port = 5432
+
+                candidates = []
+                if host:
+                    candidates.append(host)
+                candidates.extend([
+                    os.environ.get('DB_HOST'),
+                    'eddie-postgres',
+                    'postgres',
+                    '172.17.0.1',
+                    '127.0.0.1',
+                    'localhost'
+                ])
+                seen = set()
+                diag = {}
+                for h in candidates:
+                    if not h or h in seen:
+                        continue
+                    seen.add(h)
+                    reachable = _tcp_check(h, port)
+                    diag[h] = {'port': port, 'reachable': reachable}
+                self.ipc_diag = {'error': self.ipc_init_error, 'candidates': diag}
         else:
-            # garantir que a métrica reflita o estado quando não configurado
-            advisor_ipc_ready.set(0)
+            # If DATABASE_URL not configured, try to build from DB_* env vars
+            db_host = os.environ.get('DB_HOST') or os.environ.get('POSTGRES_HOST')
+            db_port = int(os.environ.get('DB_PORT') or os.environ.get('POSTGRES_PORT') or 5432)
+            db_name = os.environ.get('DB_NAME') or os.environ.get('POSTGRES_DB')
+            db_user = os.environ.get('DB_USER') or os.environ.get('POSTGRES_USER')
+            db_pass = os.environ.get('DB_PASSWORD') or os.environ.get('POSTGRES_PASSWORD')
+
+            if IPC_AVAILABLE and db_host and db_user and db_pass and db_name:
+                constructed = f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+                logger.info(f"DATABASE_URL not set; attempting to initialize IPC using DB_HOST={db_host}")
+                try:
+                    # set and retry
+                    self.database_url = constructed
+                    init_table()
+                    self.ipc_ready = True
+                    advisor_ipc_ready.set(1)
+                    logger.info("✅ IPC table initialized (PostgreSQL) via DB_HOST variables")
+                except Exception as e:
+                    self.ipc_ready = False
+                    advisor_ipc_ready.set(0)
+                    self.ipc_init_error = str(e)
+                    logger.warning(f"IPC init failed using DB_HOST vars: {e}")
+                    reachable = _tcp_check(db_host, db_port)
+                    self.ipc_diag = {'error': self.ipc_init_error, 'candidates': {db_host: {'port': db_port, 'reachable': reachable}}}
+            else:
+                # garantir que a métrica reflita o estado quando não configurado
+                advisor_ipc_ready.set(0)
 
         # RAG — knowledge retriever
         self.rag = None
@@ -1049,6 +1119,7 @@ async def health():
         "ollama_host": advisor.ollama_host,
         "bus_connected": advisor.bus is not None,
         "ipc_available": advisor.ipc_ready,
+        "ipc_diag": getattr(advisor, 'ipc_diag', {}),
         "api_base_url": advisor.api_base_url,
         "system": system_metrics,
         "scheduler": {
