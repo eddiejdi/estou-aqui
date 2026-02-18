@@ -7,24 +7,18 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:estou_aqui/main.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:estou_aqui/screens/splash_screen.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const My
+  testWidgets('Splash screen shows app title', (WidgetTester tester) async {
+    // Pump only the SplashScreen to avoid initializing platform WebView in tests.
+    await tester.pumpWidget(const ProviderScope(child: MaterialApp(home: SplashScreen())));
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Let the SplashScreen timer run and settle (it waits 2s before checking auth).
+    await tester.pump(const Duration(seconds: 3));
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // The splash contains the text 'Estou Aqui'.
+    expect(find.text('Estou Aqui'), findsOneWidget);
   });
 }
