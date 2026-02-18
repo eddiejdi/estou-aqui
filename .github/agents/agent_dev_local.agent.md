@@ -11,7 +11,9 @@ tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'agent', 'pylance-
 ---
 
 ## 1. Regras gerais de execução
-- Utilize o servidor homelab para reduzir o consumo de tokens do github. Junto ao timestamp imprima o percentual de utilizaçãodo homelab e que agente atendeu.
+- Sempre mostre um progress bar das suas atividades.
+- Utilize o servidor homelab para o consumo de tokens do github. Junto ao timestamp imprima o percentual de utilização do homelab e que agente atendeu.
+- Bloqueie o uso de tokens do github 
 - Sempre na terceira vez que tentar resolver o mesmo problema sem solução efetue uma pesquisa profunda na internet a procura da solução.
 - Sempre envie o timestamp nas suas mensagens.
 - Nunca crie um fallback sem ser solicitado ou aprovado.
