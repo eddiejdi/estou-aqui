@@ -13,7 +13,8 @@ tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'agent', 'pylance-
 ## 1. Regras gerais de execução
 - Sempre mostre um progress bar das suas atividades.
 - Utilize o servidor homelab para o consumo de tokens do github. Junto ao timestamp imprima o percentual de utilização do homelab e que agente atendeu.
-- Bloqueie o uso de tokens do github 
+- Bloqueie o uso de tokens do github.
+- Bloqueie o uso de tokens da OpenAI.
 - Sempre na terceira vez que tentar resolver o mesmo problema sem solução efetue uma pesquisa profunda na internet a procura da solução.
 - Sempre envie o timestamp nas suas mensagens.
 - Nunca crie um fallback sem ser solicitado ou aprovado.
@@ -488,7 +489,58 @@ Prioridade de métodos quando SSH está indisponível:
 
 ---
 
-## 21. Referências rápidas
+## 21. Integração com o Communication Bus (Copilot Bridge)
+
+### 21.1 Visão geral
+O Copilot (dev_local) mantém presença ativa no Communication Bus do homelab via `scripts/copilot_bus_bridge.py`. Isso permite:
+- Receber tarefas em overflow quando agentes especializados estão ocupados
+- Heartbeat a cada 30s informando disponibilidade e capabilities
+- Registro de resultados no Distributed Coordinator (precisão rastreada)
+
+### 21.2 Como iniciar o bridge
+```bash
+# Modo padrão (SSE + heartbeat)
+python3 scripts/copilot_bus_bridge.py &
+
+# Modo polling (sem SSE, útil se SSE perder conexão)
+python3 scripts/copilot_bus_bridge.py --no-sse &
+
+# URL personalizada
+python3 scripts/copilot_bus_bridge.py --homelab-url http://192.168.15.2:8503
+```
+
+### 21.3 Regras de aceitação de tarefas
+- **Aceita automaticamente**: mensagens com target `copilot`, `copilot-vscode`, `copilot-local`, `dev_local`
+- **Aceita em overflow**: requests broadcast (target=all) quando idle >60s e <3 tarefas pendentes
+- **Aceita fallback**: quando outro agente falha e o conteúdo menciona `copilot`
+- **Ignora**: heartbeats do coordinator, autoscaler noise, próprias mensagens
+- **Limite**: máximo 3 tarefas simultâneas pendentes
+
+### 21.4 Capabilities anunciadas
+`flutter`, `dart`, `node.js`, `express`, `python`, `devops`, `ci/cd`, `docker`, `git`, `code-review`, `multi-language`, `full-stack`
+
+### 21.5 Endpoints utilizados
+| Endpoint | Uso |
+|----------|-----|
+| `GET /health` | Verificar conectividade |
+| `POST /communication/publish` | Publicar heartbeat, aceitar tarefas, enviar resultados |
+| `GET /bus/stream` | SSE listener em tempo real |
+| `GET /communication/messages` | Polling fallback |
+| `POST /distributed/record-result` | Registrar resultados para tracking de precisão |
+
+### 21.6 Variáveis de ambiente
+| Variável | Descrição | Padrão |
+|----------|-----------|--------|
+| `HOMELAB_URL` | URL da API do homelab | `http://192.168.15.2:8503` |
+
+### 21.7 Workflow ao iniciar sessão
+1. Verificar conectividade: `ssh homelab@192.168.15.2 'curl -sf http://localhost:8503/health'`
+2. Iniciar bridge: `python3 scripts/copilot_bus_bridge.py --no-sse &`
+3. Verificar presença no bus: `ssh homelab@192.168.15.2 'curl -s http://localhost:8503/interceptor/search/by-agent?agent=copilot'`
+
+---
+
+## 22. Referências rápidas
 
 - **Documentação geral**: `docs/confluence/pages/OPERATIONS.md`
 - **Arquitetura**: `docs/ARCHITECTURE.md`, `docs/confluence/pages/ARCHITECTURE.md`
