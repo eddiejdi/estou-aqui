@@ -88,6 +88,12 @@ advisor_ipc_pending_requests = Gauge(
     "Número de requisições IPC pendentes"
 )
 
+# indica se o IPC (Postgres) está disponível para o agente (1 = disponível, 0 = não)
+advisor_ipc_ready = Gauge(
+    "advisor_ipc_ready",
+    "1 se o IPC (Postgres) estiver disponível para o advisor, 0 caso contrário"
+)
+
 advisor_llm_calls_total = Counter(
     "advisor_llm_calls_total",
     "Total de chamadas ao LLM",
@@ -239,9 +245,15 @@ class HomelabAdvisor:
             try:
                 init_table()
                 self.ipc_ready = True
+                advisor_ipc_ready.set(1)
                 logger.info("✅ IPC table initialized (PostgreSQL)")
             except Exception as e:
+                self.ipc_ready = False
+                advisor_ipc_ready.set(0)
                 logger.warning(f"IPC init failed: {e}")
+        else:
+            # garantir que a métrica reflita o estado quando não configurado
+            advisor_ipc_ready.set(0)
 
         # RAG — knowledge retriever
         self.rag = None
