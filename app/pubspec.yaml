@@ -52,6 +52,10 @@ dependencies:
   flutter_animate: ^4.5.0
   lottie: ^3.1.2
 
+  # WebView (modo wrapper — renderiza o site como app nativo)
+  webview_flutter: ^4.10.0
+  webview_flutter_android: ^4.3.0
+
   # Utilitários
   intl: ^0.20.2
   timeago: ^3.7.0
