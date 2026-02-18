@@ -299,6 +299,10 @@ class HomelabAdvisor:
                 "options": {"num_predict": max_tokens}
             }
             async with httpx.AsyncClient(timeout=180.0) as client:
+                # Audit log: provider information (do NOT log secrets)
+                logger.info(
+                    f"LLM request provider=ollama host={self.ollama_host} model={self.ollama_model} prompt_len={len(prompt)}"
+                )
                 r = await client.post(url, json=payload)
                 r.raise_for_status()
                 data = r.json()
@@ -495,6 +499,7 @@ Avalie a arquitetura e sugira melhorias para:
                 content = (message.content or "")
                 source = getattr(message, 'source', 'unknown')
                 logger.info(f"📨 Bus msg de {source} (target={getattr(message, 'target', '')}): {content[:200]}")
+                logger.info(f"ipc_ready={self.ipc_ready} api_base_url={self.api_base_url} metadata_keys={list(getattr(message, 'metadata', {}) or {})}")
 
                 # detectar severidade (se vier em metadata)
                 severity = None
@@ -525,6 +530,24 @@ Avalie a arquitetura e sugira melhorias para:
                         logger.info(f"📤 Resposta IPC publicada: {req_id}")
                     except Exception as e:
                         logger.error(f"Erro ao publicar resposta IPC: {e}")
+                else:
+                    # IPC offline → fallback: publicar diretamente no Agent Bus via API
+                    try:
+                        logger.info("ℹ️ Fallback path triggered: publishing direct response to /communication/publish")
+                        payload = {
+                            "message_type": "response",
+                            "source": "homelab-advisor",
+                            "target": source,
+                            "content": f"Advisor (fallback): acknowledged - {content[:120]}",
+                            "metadata": {"original_message_id": getattr(message, 'id', None), "fallback": True}
+                        }
+                        resp = httpx.post(f"{self.api_base_url}/communication/publish", json=payload, timeout=5.0)
+                        if resp.status_code == 200:
+                            logger.info("📤 Fallback: resposta publicada diretamente no bus via API")
+                        else:
+                            logger.error(f"Fallback publish falhou: {resp.status_code} {resp.text}")
+                    except Exception as e:
+                        logger.error(f"Erro no fallback de publish direto ao bus: {e}")
         except Exception as e:
             logger.error(f"Erro ao processar mensagem do bus: {e}")
 
@@ -631,8 +654,19 @@ Avalie a arquitetura e sugira melhorias para:
                     result = await self.review_architecture()
                     response_text = json.dumps(result, ensure_ascii=False)
                 else:
-                    response_text = await self.call_llm(content, max_tokens=400)
-                
+                    try:
+                        # Limitar tempo de espera pelo LLM para não bloquear respostas IPC
+                        response_text = await asyncio.wait_for(
+                            self.call_llm(content, max_tokens=400),
+                            timeout=12.0
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning(f"LLM timeout para IPC #{req_id} — retornando fallback")
+                        response_text = "[resposta temporária] O consultor está ocupado; por favor tente novamente em instantes."
+                    except Exception as exc:
+                        logger.error(f"Erro LLM ao processar IPC #{req_id}: {exc}")
+                        response_text = f"[erro LLM: {type(exc).__name__}]"
+
                 respond(req_id, responder="homelab-advisor", response_text=response_text)
                 advisor_ipc_messages_processed_total.labels(result="success").inc()
                 logger.info(f"✅ Resposta enviada para IPC #{req_id}")
