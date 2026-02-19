@@ -7,7 +7,9 @@ errors=0
 check() {
   local file="$1"; shift
   local expected="$1"; shift
-  if ! grep -Fq "$expected" "$file"; then
+  # Use -- to mark end-of-options so patterns that begin with '-' are treated
+  # as plain strings (fixes runners where grep would parse a leading '--').
+  if ! grep -Fq -- "$expected" "$file"; then
     echo "ERROR: '$expected' not found in $file"
     errors=$((errors+1))
   else
