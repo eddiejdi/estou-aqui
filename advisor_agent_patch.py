@@ -88,6 +88,12 @@ advisor_ipc_pending_requests = Gauge(
     "Número de requisições IPC pendentes"
 )
 
+# indica se o IPC (Postgres) está disponível para o agente (1 = disponível, 0 = não)
+advisor_ipc_ready = Gauge(
+    "advisor_ipc_ready",
+    "1 se o IPC (Postgres) estiver disponível para o advisor, 0 caso contrário"
+)
+
 advisor_llm_calls_total = Counter(
     "advisor_llm_calls_total",
     "Total de chamadas ao LLM",
@@ -235,13 +241,89 @@ class HomelabAdvisor:
         
         # IPC via PostgreSQL
         self.ipc_ready = False
+        # diagnostic info for health checks when IPC is not available
+        self.ipc_init_error: Optional[str] = None
+        self.ipc_diag: Dict[str, Any] = {}
+
+        def _tcp_check(host: str, port: int, timeout: float = 0.8) -> bool:
+            import socket
+            try:
+                with socket.create_connection((host, port), timeout=timeout):
+                    return True
+            except Exception:
+                return False
+
         if IPC_AVAILABLE and self.database_url:
             try:
                 init_table()
                 self.ipc_ready = True
+                advisor_ipc_ready.set(1)
                 logger.info("✅ IPC table initialized (PostgreSQL)")
             except Exception as e:
+                # collect diagnostics and keep IPC disabled
+                self.ipc_ready = False
+                advisor_ipc_ready.set(0)
+                self.ipc_init_error = str(e)
                 logger.warning(f"IPC init failed: {e}")
+
+                # try to detect reachable candidate hosts to help troubleshooting
+                try:
+                    from urllib.parse import urlparse
+                    parsed = urlparse(self.database_url)
+                    host = parsed.hostname
+                    port = parsed.port or 5432
+                except Exception:
+                    host = None
+                    port = 5432
+
+                candidates = []
+                if host:
+                    candidates.append(host)
+                candidates.extend([
+                    os.environ.get('DB_HOST'),
+                    'eddie-postgres',
+                    'postgres',
+                    '172.17.0.1',
+                    '127.0.0.1',
+                    'localhost'
+                ])
+                seen = set()
+                diag = {}
+                for h in candidates:
+                    if not h or h in seen:
+                        continue
+                    seen.add(h)
+                    reachable = _tcp_check(h, port)
+                    diag[h] = {'port': port, 'reachable': reachable}
+                self.ipc_diag = {'error': self.ipc_init_error, 'candidates': diag}
+        else:
+            # If DATABASE_URL not configured, try to build from DB_* env vars
+            db_host = os.environ.get('DB_HOST') or os.environ.get('POSTGRES_HOST')
+            db_port = int(os.environ.get('DB_PORT') or os.environ.get('POSTGRES_PORT') or 5432)
+            db_name = os.environ.get('DB_NAME') or os.environ.get('POSTGRES_DB')
+            db_user = os.environ.get('DB_USER') or os.environ.get('POSTGRES_USER')
+            db_pass = os.environ.get('DB_PASSWORD') or os.environ.get('POSTGRES_PASSWORD')
+
+            if IPC_AVAILABLE and db_host and db_user and db_pass and db_name:
+                constructed = f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+                logger.info(f"DATABASE_URL not set; attempting to initialize IPC using DB_HOST={db_host}")
+                try:
+                    # set and retry
+                    self.database_url = constructed
+                    init_table()
+                    self.ipc_ready = True
+                    advisor_ipc_ready.set(1)
+                    logger.info("✅ IPC table initialized (PostgreSQL) via DB_HOST variables")
+                except Exception as e:
+                    self.ipc_ready = False
+                    advisor_ipc_ready.set(0)
+                    self.ipc_init_error = str(e)
+                    logger.warning(f"IPC init failed using DB_HOST vars: {e}")
+                    reachable = _tcp_check(db_host, db_port)
+                    self.ipc_diag = {'error': self.ipc_init_error, 'candidates': {db_host: {'port': db_port, 'reachable': reachable}}}
+            else:
+                # garantir que a métrica reflita o estado quando não configurado
+                advisor_ipc_ready.set(0)
 
         # RAG — knowledge retriever
         self.rag = None
@@ -299,6 +381,10 @@ class HomelabAdvisor:
                 "options": {"num_predict": max_tokens}
             }
             async with httpx.AsyncClient(timeout=180.0) as client:
+                # Audit log: provider information (do NOT log secrets)
+                logger.info(
+                    f"LLM request provider=ollama host={self.ollama_host} model={self.ollama_model} prompt_len={len(prompt)}"
+                )
                 r = await client.post(url, json=payload)
                 r.raise_for_status()
                 data = r.json()
@@ -495,6 +581,7 @@ Avalie a arquitetura e sugira melhorias para:
                 content = (message.content or "")
                 source = getattr(message, 'source', 'unknown')
                 logger.info(f"📨 Bus msg de {source} (target={getattr(message, 'target', '')}): {content[:200]}")
+                logger.info(f"ipc_ready={self.ipc_ready} api_base_url={self.api_base_url} metadata_keys={list(getattr(message, 'metadata', {}) or {})}")
 
                 # detectar severidade (se vier em metadata)
                 severity = None
@@ -525,6 +612,24 @@ Avalie a arquitetura e sugira melhorias para:
                         logger.info(f"📤 Resposta IPC publicada: {req_id}")
                     except Exception as e:
                         logger.error(f"Erro ao publicar resposta IPC: {e}")
+                else:
+                    # IPC offline → fallback: publicar diretamente no Agent Bus via API
+                    try:
+                        logger.info("ℹ️ Fallback path triggered: publishing direct response to /communication/publish")
+                        payload = {
+                            "message_type": "response",
+                            "source": "homelab-advisor",
+                            "target": source,
+                            "content": f"Advisor (fallback): acknowledged - {content[:120]}",
+                            "metadata": {"original_message_id": getattr(message, 'id', None), "fallback": True}
+                        }
+                        resp = httpx.post(f"{self.api_base_url}/communication/publish", json=payload, timeout=5.0)
+                        if resp.status_code == 200:
+                            logger.info("📤 Fallback: resposta publicada diretamente no bus via API")
+                        else:
+                            logger.error(f"Fallback publish falhou: {resp.status_code} {resp.text}")
+                    except Exception as e:
+                        logger.error(f"Erro no fallback de publish direto ao bus: {e}")
         except Exception as e:
             logger.error(f"Erro ao processar mensagem do bus: {e}")
 
@@ -631,8 +736,19 @@ Avalie a arquitetura e sugira melhorias para:
                     result = await self.review_architecture()
                     response_text = json.dumps(result, ensure_ascii=False)
                 else:
-                    response_text = await self.call_llm(content, max_tokens=400)
-                
+                    try:
+                        # Limitar tempo de espera pelo LLM para não bloquear respostas IPC
+                        response_text = await asyncio.wait_for(
+                            self.call_llm(content, max_tokens=400),
+                            timeout=12.0
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning(f"LLM timeout para IPC #{req_id} — retornando fallback")
+                        response_text = "[resposta temporária] O consultor está ocupado; por favor tente novamente em instantes."
+                    except Exception as exc:
+                        logger.error(f"Erro LLM ao processar IPC #{req_id}: {exc}")
+                        response_text = f"[erro LLM: {type(exc).__name__}]"
+
                 respond(req_id, responder="homelab-advisor", response_text=response_text)
                 advisor_ipc_messages_processed_total.labels(result="success").inc()
                 logger.info(f"✅ Resposta enviada para IPC #{req_id}")
@@ -1003,6 +1119,7 @@ async def health():
         "ollama_host": advisor.ollama_host,
         "bus_connected": advisor.bus is not None,
         "ipc_available": advisor.ipc_ready,
+        "ipc_diag": getattr(advisor, 'ipc_diag', {}),
         "api_base_url": advisor.api_base_url,
         "system": system_metrics,
         "scheduler": {

@@ -1,9 +1,17 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 import 'screens/webview/webview_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Habilita WebView nativo no Android (registra implementação da plataforma)
+  if (Platform.isAndroid) {
+    AndroidWebViewPlatform.registerWith();
+  }
 
   // Forçar orientação retrato (melhor experiência tipo app)
   SystemChrome.setPreferredOrientations([

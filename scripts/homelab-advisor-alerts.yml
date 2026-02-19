@@ -31,3 +31,13 @@ groups:
           summary: "Homelab Advisor reporting errors"
           description: "advisor_api_reports_total status=error increased in the last 5m. Check agent logs and API connectivity."
           runbook_url: "https://your.docs/homelab-advisor#reporting-errors"
+      - alert: HomelabAdvisorIPCDown
+        expr: advisor_ipc_ready == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: homelab-advisor
+        annotations:
+          summary: "Homelab Advisor IPC (Postgres) unreachable"
+          description: "The agent's IPC (Postgres) is not available (advisor_ipc_ready == 0). Check Postgres container/network and DATABASE_URL configuration."
+          runbook_url: "https://your.docs/homelab-advisor#ipc-troubleshooting"

@@ -21,7 +21,9 @@ class _WebViewScreenState extends State<WebViewScreen> {
   late final WebViewController _controller;
   bool _isLoading = true;
   bool _hasError = false;
+  bool _hasTimedOut = false;
   int _loadingProgress = 0;
+  Timer? _initialLoadTimeout;
 
   @override
   void initState() {
@@ -30,12 +32,29 @@ class _WebViewScreenState extends State<WebViewScreen> {
   }
 
   void _initWebView() {
+    _initialLoadTimeout?.cancel();
+    _initialLoadTimeout = Timer(const Duration(seconds: 15), () {
+      if (!mounted) return;
+      if (_isLoading) {
+        setState(() {
+          _isLoading = false;
+          _hasError = true;
+          _hasTimedOut = true;
+        });
+      }
+    });
+
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setUserAgent('EstouAquiApp/1.0 (Android; Flutter WebView)')
+      // Use user-agent compatível com Android Chrome (evita branches "in-app" que
+      // podem ativar código diferente no web bundle e causar null checks).
+      ..setUserAgent('Mozilla/5.0 (Linux; Android 13; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.5672.137 Mobile Safari/537.36')
+      // Torna o background do WebView transparente para respeitar o scaffold
+      ..setBackgroundColor(const Color(0x00000000))
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (_) {
+          onPageStarted: (url) {
+            debugPrint('WebView onPageStarted: $url');
             if (mounted) {
               setState(() {
                 _isLoading = true;
@@ -44,33 +63,83 @@ class _WebViewScreenState extends State<WebViewScreen> {
             }
           },
           onProgress: (progress) {
+            debugPrint('WebView progress: $progress%');
             if (mounted) {
               setState(() => _loadingProgress = progress);
             }
           },
-          onPageFinished: (_) {
+          onPageFinished: (url) {
+            debugPrint('WebView onPageFinished: $url');
+            _initialLoadTimeout?.cancel();
             if (mounted) {
-              setState(() => _isLoading = false);
+              setState(() {
+                _isLoading = false;
+                _hasError = false;
+                _hasTimedOut = false;
+              });
             }
             // Injetar CSS para esconder elementos nativos desnecessários (ex: barra de download do app)
+            // + instalar um handler global de erros para evitar "tela branca" quando o
+            // bundle web lançar uma exceção — mostra fallback amigável e loga mensagem.
             _controller.runJavaScript('''
               (function() {
-                var style = document.createElement('style');
-                style.textContent = '.app-download-banner, .install-prompt { display: none !important; }';
-                document.head.appendChild(style);
+                try {
+                  var style = document.createElement('style');
+                  style.textContent = '.app-download-banner, .install-prompt { display: none !important; }';
+                  document.head.appendChild(style);
+
+                  // Captura erros não tratados no app web e fornece fallback visível
+                  window.addEventListener('error', function(e) {
+                    console.error('WebViewGlobalError', e && e.message ? e.message : e);
+                    try {
+                      document.body.innerHTML = '\n                        <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#111;color:#fff;font-family:sans-serif;">\n                          <div style="text-align:center;max-width:480px;padding:24px;">\n                            <h2>Ops — erro no app web</h2>\n                            <p>Houve um problema ao inicializar a versão web dentro do WebView. Tente abrir no navegador ou atualize a página.</p>\n                            <button id="open-external" style="background:#6c63ff;color:#fff;padding:10px 16px;border-radius:6px;border:none;">Abrir no navegador</button>\n                          </div>\n                        </div>';
+                      var btn = document.getElementById('open-external');
+                      if (btn) btn.addEventListener('click', function(){ window.location.href = 'https://estouaqui.rpa4all.com'; });
+                    } catch (_) { /* swallow */ }
+                  });
+
+                  window.addEventListener('unhandledrejection', function(ev){
+                    console.error('WebViewUnhandledRejection', ev && ev.reason ? ev.reason : ev);
+                  });
+                } catch (e) { console.error('injection-failed', e); }
               })();
             ''');
+
+            // Se o DOM ficar vazio (bundle travou antes de renderizar), substituir por
+            // fallback para evitar tela em branco — verifique após curto atraso.
+            Future.delayed(const Duration(milliseconds: 350), () async {
+              try {
+                final children = await _controller.runJavaScriptReturningResult('document.body && document.body.children.length');
+                debugPrint('WebView DOM children count: $children');
+                if (children == 0 || children == '0') {
+                  await _controller.runJavaScript(
+                    "document.body.innerHTML = '<div style=\"display:flex;align-items:center;justify-content:center;height:100vh;background:#111;color:#fff;font-family:sans-serif;\"><div style=\"text-align:center;max-width:480px;padding:24px;\"><h2>Versão web indisponível no WebView</h2><p>Tente abrir o app no navegador ou atualize.\n</p><a href=\"https://estouaqui.rpa4all.com\" style=\"background:#6c63ff;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;\">Abrir no navegador</a></div></div>'",
+                  );
+                }
+              } catch (e) {
+                debugPrint('DOM-check failed: $e');
+              }
+            });
           },
           onWebResourceError: (error) {
+            debugPrint('WebView resource error: code=${error.errorCode} description=${error.description} mainFrame=${error.isForMainFrame}');
+            _initialLoadTimeout?.cancel();
+            // Evita falso-positivo: erros de sub-recursos (favicon/css/etc)
+            // não devem derrubar a página inteira para tela de erro.
+            if (error.isForMainFrame != true) {
+              return;
+            }
             if (mounted) {
               setState(() {
                 _isLoading = false;
                 _hasError = true;
+                _hasTimedOut = false;
               });
             }
           },
           onNavigationRequest: (request) {
             final uri = Uri.parse(request.url);
+            debugPrint('WebView navigation request: ${request.url}');
             // Links externos — abrir no browser do sistema
             if (!request.url.startsWith(WebViewScreen.siteUrl) &&
                 !request.url.startsWith('https://estouaqui.rpa4all.com') &&
@@ -98,6 +167,12 @@ class _WebViewScreenState extends State<WebViewScreen> {
         },
       );
     }
+  }
+
+  @override
+  void dispose() {
+    _initialLoadTimeout?.cancel();
+    super.dispose();
   }
 
   Future<bool> _onWillPop() async {
@@ -224,7 +299,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
                         ),
                         const SizedBox(height: 16),
                         const Text(
-                          'Sem conexão',
+                          'Não foi possível carregar',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 22,
@@ -232,12 +307,14 @@ class _WebViewScreenState extends State<WebViewScreen> {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 40),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 40),
                           child: Text(
-                            'Verifique sua internet e tente novamente.',
+                            _hasTimedOut
+                                ? 'A página demorou para responder. Toque em "Tentar novamente".'
+                                : 'Verifique sua internet e tente novamente.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 14,
                             ),
@@ -249,7 +326,23 @@ class _WebViewScreenState extends State<WebViewScreen> {
                             setState(() {
                               _hasError = false;
                               _isLoading = true;
+                              _hasTimedOut = false;
+                              _loadingProgress = 0;
                             });
+                            _initialLoadTimeout?.cancel();
+                            _initialLoadTimeout = Timer(
+                              const Duration(seconds: 15),
+                              () {
+                                if (!mounted) return;
+                                if (_isLoading) {
+                                  setState(() {
+                                    _isLoading = false;
+                                    _hasError = true;
+                                    _hasTimedOut = true;
+                                  });
+                                }
+                              },
+                            );
                             _controller.loadRequest(
                               Uri.parse(WebViewScreen.siteUrl),
                             );
