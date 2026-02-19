@@ -1,0 +1,32 @@
+name: "AI policy check (block child repos)"
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+jobs:
+  ai-detect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR for AI-related keywords
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const keywords = ['ai','ia','modelfile','model','qwen','ollama','openwebui','eddie-coder','eddie-whatsapp','model_roster','fine-tune','inference','training'];
+            const title = (context.payload.pull_request.title || '').toLowerCase();
+            const body = (context.payload.pull_request.body || '').toLowerCase();
+
+            let found = keywords.some(k => title.includes(k) || body.includes(k));
+
+            const files = await github.paginate(github.rest.pulls.listFiles, { owner: context.repo.owner, repo: context.repo.repo, pull_number: context.payload.pull_request.number });
+            for (const f of files) {
+              const fn = (f.filename || '').toLowerCase();
+              if (keywords.some(k => fn.includes(k))) { found = true; break; }
+            }
+
+            if (!found) {
+              core.info('No AI-related keywords detected.');
+              return;
+            }
+
+            throw new Error('AI-related changes must be committed to the parent repository `eddie-auto-dev`. Please open an issue/PR there and reference it from this PR.');

@@ -73,6 +73,7 @@ export HOMELAB_HOST=192.168.15.2
 
 Segurança / secrets:
 - Armazene credenciais e chaves SSH no **Secrets Agent** (porta 8088) e referencie via `SECRETS_AGENT_URL` + `SECRETS_AGENT_API_KEY`.
+- Política importante: **questões relacionadas a IA (modelos, Modelfiles, training, etc.) devem ser submetidas ao repositório pai `eddie-auto-dev`** — veja `docs/AI_COMMIT_POLICY.md` para detalhes.
 - Use o helper: `scripts/secrets-agent/register-homelab-secrets.sh` (modelo) para inserir segredos no cofre local.
 
 Por que isso ajuda: reduz uso de CPU/RAM no laptop, garante consistência de ambiente de build e habilita runners mais potentes para E2E/Selenium.  
