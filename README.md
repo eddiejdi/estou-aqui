@@ -57,6 +57,26 @@ flutter pub get
 flutter run                 # Rodar no dispositivo/emulador
 ```
 
+## 🔧 Homelab‑first (política recomendada)
+- Objetivo: delegar *builds*, *testes* e tarefas pesadas ao **homelab** (host: `192.168.15.2`) para não sobrecarregar máquinas de desenvolvimento.
+- CI: workflows críticos (Build / Test) **devem** usar runners self-hosted (label `homelab`). A verificação automática `scripts/verify-homelab-preference.sh` falhará se essa regra for violada.
+
+Como usar o homelab rapidamente:
+```bash
+# execução manual de build/tests no homelab (script de conveniência)
+./scripts/homelab/run-on-homelab.sh "cd /home/homelab/estou-aqui && docker compose build && docker compose up -d"
+
+# forçar orquestrador remoto (dev/CI)
+export REMOTE_ORCHESTRATOR_ENABLED=true
+export HOMELAB_HOST=192.168.15.2
+```
+
+Segurança / secrets:
+- Armazene credenciais e chaves SSH no **Secrets Agent** (porta 8088) e referencie via `SECRETS_AGENT_URL` + `SECRETS_AGENT_API_KEY`.
+- Use o helper: `scripts/secrets-agent/register-homelab-secrets.sh` (modelo) para inserir segredos no cofre local.
+
+Por que isso ajuda: reduz uso de CPU/RAM no laptop, garante consistência de ambiente de build e habilita runners mais potentes para E2E/Selenium.  
+
 ## �️ Visualização do Mapa
 
 O mapa exibe:
