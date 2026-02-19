@@ -1,0 +1,33 @@
+name: Selenium — LinkedIn Page Overview monitor
+
+on:
+  schedule:
+    - cron: '0 9 * * *'   # diário (09:00 UTC) — ajuste conforme necessário
+  workflow_dispatch: {}
+
+jobs:
+  linkedin-monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Selenium requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r tests/selenium/requirements.txt webdriver-manager
+
+      - name: Run LinkedIn overview check (skip if secret missing)
+        env:
+          LINKEDIN_PASSWORD: ${{ secrets.LINKEDIN_PASSWORD }}
+        run: |
+          if [ -z "${LINKEDIN_PASSWORD}" ]; then
+            echo "Secret LINKEDIN_PASSWORD not set — skipping LinkedIn monitor test.";
+            exit 0;
+          fi
+
+          pytest -q tests/selenium/test_linkedin_overview.py::test_linkedin_page_overview_contains_rpa4all -q --maxfail=1
