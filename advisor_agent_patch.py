@@ -214,6 +214,35 @@ class HomelabAdvisor:
         self.ollama_host = os.environ.get("OLLAMA_HOST", "http://192.168.15.2:11434")
         self.ollama_model = os.environ.get("OLLAMA_MODEL", "eddie-homelab:latest")
         self.database_url = os.environ.get("DATABASE_URL")
+
+        # Try to retrieve DATABASE_URL from Secrets Agent when not set in env.
+        # Uses: SECRETS_AGENT_URL and SECRETS_AGENT_API_KEY (optional) — falls back silently.
+        if not self.database_url:
+            secrets_url = os.environ.get("SECRETS_AGENT_URL")
+            secrets_key = os.environ.get("SECRETS_AGENT_API_KEY")
+            if secrets_url and secrets_key:
+                try:
+                    # /secrets returns list of secrets; search for common names
+                    with httpx.Client(timeout=2.0) as _c:
+                        r = _c.get(f"{secrets_url}/secrets")
+                        r.raise_for_status()
+                        items = r.json() or []
+                        candidates = ("homelab-copilot-agent", "homelab_copilot_agent", "local/homelab")
+                        for s in items:
+                            name = s.get("name", "")
+                            if any(c in name for c in candidates):
+                                data = s.get("data") or {}
+                                if data.get("DATABASE_URL"):
+                                    self.database_url = data["DATABASE_URL"]
+                                    break
+                                # assemble from DB_* fields if available
+                                if all(k in data for k in ("DB_HOST", "DB_USER", "DB_PASSWORD", "DB_NAME")):
+                                    port = data.get("DB_PORT") or 5432
+                                    self.database_url = f"postgresql://{data['DB_USER']}:{data['DB_PASSWORD']}@{data['DB_HOST']}:{port}/{data['DB_NAME']}"
+                                    break
+                except Exception as _:
+                    logger.debug("Secrets Agent lookup failed or unreachable; continuing without it")
+
         self.api_base_url = os.environ.get("API_BASE_URL", "http://127.0.0.1:8503")
         self.bus_poll_interval = int(os.environ.get("BUS_POLL_INTERVAL_SEC", "5"))
         
