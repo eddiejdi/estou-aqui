@@ -492,6 +492,9 @@ socket.emit('alerts:request-active');
 - Comportamento esperado: após correção, `curl -sS http://127.0.0.1:8085/health` deve retornar `"ipc_available": true` e `advisor_ipc_ready` deve ser exportada como métrica.
 - Nota operacional: prefira injetar senha via Secrets Agent (não hardcode).
 
+Systemd runtime note
+- Use o helper `scripts/secrets-agent/run-homelab-copilot.sh` como ExecStart para o serviço `homelab_copilot_agent` (sample em `scripts/systemd/homelab_copilot_agent.service.sample`). Isso faz o lookup no Secrets Agent e injeta `DATABASE_URL` sem deixar senhas em texto claro.
+
 ### Reporting errors {#reporting-errors}
 - Symptom: `HomelabAdvisorReportErrors` firing.
 - Checar métricas:
