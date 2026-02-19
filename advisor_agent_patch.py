@@ -106,6 +106,13 @@ advisor_llm_duration_seconds = Histogram(
     buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 90.0)
 )
 
+# Tokens processed by LLM (estimate) — labels: prompt/response/total
+advisor_llm_tokens_total = Counter(
+    "advisor_llm_tokens_total",
+    "Estimativa de tokens processados em chamadas ao LLM",
+    ["type"]  # type in {"prompt", "response", "total"}
+)
+
 # --- Métricas Scheduler ---
 advisor_scheduler_runs_total = Counter(
     "advisor_scheduler_runs_total",
@@ -417,8 +424,24 @@ class HomelabAdvisor:
                 r = await client.post(url, json=payload)
                 r.raise_for_status()
                 data = r.json()
+
+                # Estimate token usage (simple heuristic: ~4 chars per token)
+                def _approx_tokens(s: str) -> int:
+                    if not s:
+                        return 0
+                    return max(1, int(len(s) / 4))
+
+                response_text = data.get("response", "") or ""
+                prompt_tokens = _approx_tokens(prompt)
+                response_tokens = _approx_tokens(response_text)
+                total_tokens = prompt_tokens + response_tokens
+
+                advisor_llm_tokens_total.labels(type="prompt").inc(prompt_tokens)
+                advisor_llm_tokens_total.labels(type="response").inc(response_tokens)
+                advisor_llm_tokens_total.labels(type="total").inc(total_tokens)
+
                 advisor_llm_calls_total.labels(status="success").inc()
-                return data.get("response", "")
+                return response_text
         except Exception as exc:
             advisor_llm_calls_total.labels(status="error").inc()
             err_type = type(exc).__name__
