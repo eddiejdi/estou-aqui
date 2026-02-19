@@ -1,0 +1,24 @@
+# Sample systemd unit for homelab_copilot_agent
+# Drop this into /etc/systemd/system/homelab_copilot_agent.service and enable.
+
+[Unit]
+Description=Homelab Copilot Agent (sample)
+After=network.target docker.service
+
+[Service]
+User=homelab
+WorkingDirectory=/home/homelab/eddie-auto-dev/homelab_copilot_agent
+Environment=PORT=8085
+Environment=OLLAMA_HOST=http://192.168.15.2:11434
+# Ensure the agent can resolve the Postgres container hostname and reach the API
+Environment=API_BASE_URL=http://172.17.0.1:8503
+# Recommended: use container hostname 'eddie-postgres' and attach to same Docker network
+Environment=DATABASE_URL=postgresql://postgres:postgres@eddie-postgres:5432/postgres
+
+# Run the container on the same Docker network as eddie-postgres so hostnames resolve
+ExecStart=/usr/bin/docker run --rm --name homelab-copilot-agent --network homelab_monitoring -p 8085:8085 \
+  -e API_BASE_URL=$API_BASE_URL -e DATABASE_URL=$DATABASE_URL homelab-copilot-agent:latest
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

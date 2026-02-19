@@ -479,6 +479,19 @@ socket.emit('alerts:request-active');
   1. Ajuste systemd override para passar `API_BASE_URL` e reinicie o serviço.
   2. Revise logs do agent para `Registrado na API principal via IPC`.
 
+### IPC / Network troubleshooting {#ipc-network-troubleshooting}
+- Symptom: `advisor_ipc_ready == 0` or `IPC init failed: could not translate host name` in agent logs.
+- Causas comuns:
+  - O container do agent não está na mesma rede Docker que o Postgres (hostname `eddie-postgres` não resolvido).
+  - `DATABASE_URL` configurado com host/porta incorretos ou credenciais inválidas.
+- Ações imediatas:
+  1. Use o sample systemd em `scripts/systemd/homelab_copilot_agent.service.sample` (inclui `--network homelab_monitoring` e `DATABASE_URL` apontando para `eddie-postgres`).
+  2. Verifique conectividade DNS/TCP a partir do container: `docker exec <agent-cid> python3 -c "import socket; socket.create_connection(('eddie-postgres',5432),2)"`
+  3. Confirme credenciais: `docker exec eddie-postgres env | grep POSTGRES_PASSWORD` e ajuste `DATABASE_URL` conforme necessário.
+  4. Reinicie o serviço systemd que inicia o container (`sudo systemctl daemon-reload && sudo systemctl restart homelab_copilot_agent`).
+- Comportamento esperado: após correção, `curl -sS http://127.0.0.1:8085/health` deve retornar `"ipc_available": true` e `advisor_ipc_ready` deve ser exportada como métrica.
+- Nota operacional: prefira injetar senha via Secrets Agent (não hardcode).
+
 ### Reporting errors {#reporting-errors}
 - Symptom: `HomelabAdvisorReportErrors` firing.
 - Checar métricas:
