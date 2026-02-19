@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/chat_message.dart';
 import '../../providers/app_providers.dart';
@@ -85,14 +84,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
     final socket = ref.read(socketServiceProvider);
     socket.sendMessage(widget.eventId, text);
-
-    // Toca som de envio (usa API nativa — não requer assets)
-    try {
-      SystemSound.play(SystemSoundType.click);
-    } catch (_) {
-      // silencioso se plataforma não suportar
-    }
-
     _messageController.clear();
   }
 

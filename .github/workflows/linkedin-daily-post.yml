@@ -1,0 +1,26 @@
+name: LinkedIn — daily post agent
+
+on:
+  schedule:
+    - cron: '0 11 * * *' # daily at 11:00 UTC (adjust as needed)
+  workflow_dispatch: {}
+
+jobs:
+  linkedin-daily-post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: python -m pip install requests
+      - name: Run LinkedIn daily post agent
+        env:
+          LINKEDIN_ACCESS_TOKEN: ${{ secrets.LINKEDIN_ACCESS_TOKEN }}
+          LINKEDIN_ORG_ID: ${{ secrets.LINKEDIN_ORG_ID }}
+          POST_ORG_MESSAGE: "Publicação automática diária — acompanhe nossas novidades."
+          POST_PERSONAL_MESSAGE: "Atualização diária — testando automação de publicações."
+        run: |
+          python3 tests/linkedin/daily_post_agent.py --org-id "$LINKEDIN_ORG_ID" || true

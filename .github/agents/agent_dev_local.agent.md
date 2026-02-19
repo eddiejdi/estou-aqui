@@ -11,6 +11,8 @@ tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'agent', 'pylance-
 ---
 
 ## 1. Regras gerais de execução
+retire do projeto estou-aqui
+- Alteraçãoes No servidor Homelab sem contexto com a aplicação estou-aqui devem ser feito pr para o repositório eddie-auto-dev
 - Sempre mostre um progress bar das suas atividades.
 - Utilize o servidor homelab para o consumo de tokens do github. Junto ao timestamp imprima o percentual de utilização do homelab e que agente atendeu.
 - Bloqueie o uso de tokens do github.
