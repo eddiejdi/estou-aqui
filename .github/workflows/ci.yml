@@ -62,3 +62,20 @@ jobs:
       - name: Run tests
         run: flutter test || echo "No tests configured"
         timeout-minutes: 10
+
+  homelab-guard:
+    name: Homelab usage guard
+    runs-on: [self-hosted, homelab]
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run homelab preference checks
+        run: |
+          chmod +x ./scripts/verify-homelab-preference.sh
+          ./scripts/verify-homelab-preference.sh
+        timeout-minutes: 5
+
