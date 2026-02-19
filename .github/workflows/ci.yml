@@ -1,4 +1,7 @@
 name: CI — Estou Aqui
+env:
+  REMOTE_ORCHESTRATOR_ENABLED: 'true'
+  HOMELAB_HOST: '192.168.15.2'
 
 on:
   workflow_dispatch: {}

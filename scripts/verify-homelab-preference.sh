@@ -38,6 +38,23 @@ if ! grep -R --line-number "HOMELAB_HOST" tests | grep -q "192.168.15.2"; then
   echo "WARN: tests do not reference HOMELAB_HOST default 192.168.15.2 (ok if intentional)"
 fi
 
+# 7) Enforce: CI 'Build' and 'Test' jobs MUST prefer self-hosted (homelab)
+bad=0
+for wf in .github/workflows/*.yml; do
+  if grep -qE 'name:\s*.*(Build|Test)' "$wf"; then
+    if ! grep -q 'self-hosted' "$wf"; then
+      echo "ERROR: workflow $wf declares Build/Test job but does not reference a 'self-hosted' runner"
+      bad=1
+    else
+      echo "OK: $wf declares Build/Test job and references 'self-hosted'"
+    fi
+  fi
+done
+if [ $bad -ne 0 ]; then
+  echo "\nFound CI workflow violations: enforce 'self-hosted' for Build/Test jobs."
+  exit 2
+fi
+
 if [ "$errors" -ne 0 ]; then
   echo "\nFound $errors homelab-preference errors. Fix the files listed above."
   exit 2
