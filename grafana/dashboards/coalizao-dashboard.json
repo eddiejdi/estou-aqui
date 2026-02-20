@@ -73,6 +73,41 @@
         "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
         "targets": [{ "rawSql": "SELECT c.name, c.hashtag, c.total_events, c.total_attendees, c.total_cities FROM coalitions c WHERE c.status = 'active' ORDER BY c.total_attendees DESC LIMIT 10", "refId": "A", "format": "table" }],
         "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 20,
+        "type": "stat",
+        "title": "Ollama - último check (<= 30m)",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 20 },
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": { "steps": [ { "color": "red", "value": 0 }, { "color": "green", "value": 1 } ] },
+            "unit": "none"
+          }
+        },
+        "targets": [
+          {
+            "rawSql": "SELECT CASE WHEN MAX(checked_at) >= NOW() - INTERVAL '30 minutes' THEN 1 ELSE 0 END AS value FROM service_checks WHERE service_name = 'ollama_health_check' AND status = true",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 21,
+        "type": "table",
+        "title": "Ollama - últimos checks",
+        "gridPos": { "h": 8, "w": 18, "x": 6, "y": 20 },
+        "targets": [
+          {
+            "rawSql": "SELECT checked_at, status, http_code, details->>\'snippet\' as snippet FROM service_checks WHERE service_name = 'ollama_health_check' ORDER BY checked_at DESC LIMIT 10",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
       }
     ],
     "schemaVersion": 39,
