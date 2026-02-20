@@ -17,9 +17,11 @@ Environment=DATABASE_URL=postgresql://postgres:postgres@eddie-postgres:5432/post
 
 # Run the container via helper that retrieves secrets from the Secrets Agent
 # Ensure SECRETS_AGENT_URL and SECRETS_AGENT_API_KEY are set in a drop-in or environment
+# Docker run flags: --network homelab_monitoring ensures the agent can reach
+# eddie-postgres and other containers on the shared monitoring network.
 # Clear previous ExecStart so systemd will accept the replacement in a drop-in
 ExecStart=
-ExecStart=/bin/bash -c '/home/homelab/eddie-auto-dev/estou-aqui/scripts/secrets-agent/run-homelab-copilot.sh'
+ExecStart=/bin/bash -c '/home/homelab/eddie-auto-dev/estou-aqui/scripts/secrets-agent/run-homelab-copilot.sh --network homelab_monitoring'
 Restart=always
 
 [Install]
