@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 Painel Multi-Agente | Estou Aqui</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --secondary: #8b5cf6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1f2937;
+            --light: #f3f4f6;
+            --border: #e5e7eb;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, var(--dark) 0%, #111827 100%);
+            color: #fff;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-badge.online {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .status-badge.offline {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        .pulse {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .refresh-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .refresh-btn:hover {
+            background: var(--secondary);
+            transform: translateY(-2px);
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(31, 41, 55, 0.8);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+        }
+
+        .card:hover {
+            border-color: var(--primary);
+            transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.2);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .card-icon {
+            font-size: 1.5rem;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(229, 231, 235, 0.2);
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: #9ca3af;
+            font-size: 0.9rem;
+        }
+
+        .metric-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .agent-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .agent-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 3px solid var(--primary);
+        }
+
+        .agent-item.active {
+            border-left-color: var(--success);
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .agent-item.idle {
+            border-left-color: var(--warning);
+            background: rgba(245, 158, 11, 0.1);
+        }
+
+        .agent-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .agent-badge {
+            background: rgba(99, 102, 241, 0.3);
+            color: var(--primary);
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+        }
+
+        .tasks-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .tasks-table th {
+            background: rgba(99, 102, 241, 0.2);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .tasks-table td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tasks-table tr:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .status-dot.success {
+            background: var(--success);
+        }
+
+        .status-dot.warning {
+            background: var(--warning);
+        }
+
+        .status-dot.error {
+            background: var(--danger);
+        }
+
+        .chart-container {
+            height: 300px;
+            margin-top: 15px;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100px;
+        }
+
+        .spinner {
+            border: 3px solid rgba(99, 102, 241, 0.3);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-box {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid var(--danger);
+            color: #fca5a5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: #9ca3af;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            header {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+
+            .header-right {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <span>🤖</span>
+                <span>Painel Multi-Agente</span>
+            </h1>
+            <div class="header-right">
+                <div id="statusBadge" class="status-badge online">
+                    <span class="pulse"></span>
+                    Conectado
+                </div>
+                <button id="refreshBtn" class="refresh-btn" onclick="refreshData()">🔄 Atualizar</button>
+            </div>
+        </header>
+
+        <div class="grid">
+            <!-- Status Geral -->
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Status do Sistema</div>
+                    </div>
+                    <div class="card-icon">📊</div>
+                </div>
+                <div id="systemStatus" class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <!-- Comunicação Bus -->
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Communication Bus</div>
+                    </div>
+                    <div class="card-icon">🚌</div>
+                </div>
+                <div id="busStatus" class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <!-- Métricas API -->
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Métricas API</div>
+                    </div>
+                    <div class="card-icon">📈</div>
+                </div>
+                <div id="apiMetrics" class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <!-- Agentes Conectados -->
+            <div class="card full-width">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Agentes Conectados</div>
+                    </div>
+                    <div class="card-icon">🔌</div>
+                </div>
+                <div id="agentsList" class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+
+            <!-- Tarefas em Execução -->
+            <div class="card full-width">
+                <div class="card-header">
+                    <div>
+                        <div class="card-title">Tarefas em Execução</div>
+                    </div>
+                    <div class="card-icon">⚙️</div>
+                </div>
+                <div id="tasksList" class="loading">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>🏠 Estou Aqui | Multi-Agent System Dashboard | Atualizado a cada 5s</p>
+            <p style="margin-top: 10px; opacity: 0.7;">Coordinator API: http://192.168.15.2:8503</p>
+        </footer>
+    </div>
+
+    <script>
+        const API_BASE = 'http://192.168.15.2:8503';
+        let autoRefreshInterval;
+
+        async function fetchJSON(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    ...options,
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.error('Fetch error:', error);
+                return null;
+            }
+        }
+
+        async function getSystemStatus() {
+            const data = await fetchJSON(`${API_BASE}/health`);
+            if (!data) {
+                document.getElementById('statusBadge').className = 'status-badge offline';
+                document.getElementById('statusBadge').innerHTML = '<span class="pulse"></span>Desconectado';
+                document.getElementById('systemStatus').innerHTML = '<div class="error-box">❌ Coordinator indisponível</div>';
+                return;
+            }
+
+            document.getElementById('statusBadge').className = 'status-badge online';
+            let html = `
+                <div class="metric">
+                    <span class="metric-label">Status</span>
+                    <span class="metric-value" style="color: var(--success);">✓ Saudável</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Timestamp</span>
+                    <span class="metric-value">${new Date(data.timestamp).toLocaleTimeString('pt-BR')}</span>
+                </div>
+            `;
+
+            if (data.cpu) {
+                html += `
+                    <div class="metric">
+                        <span class="metric-label">CPU</span>
+                        <span class="metric-value">${(data.cpu * 100).toFixed(1)}%</span>
+                    </div>
+                `;
+            }
+
+            if (data.memory) {
+                html += `
+                    <div class="metric">
+                        <span class="metric-label">Memória</span>
+                        <span class="metric-value">${(data.memory * 100).toFixed(1)}%</span>
+                    </div>
+                `;
+            }
+
+            document.getElementById('systemStatus').innerHTML = html;
+        }
+
+        async function getBusStatus() {
+            const data = await fetchJSON(`${API_BASE}/bus/stats`);
+            if (!data) {
+                document.getElementById('busStatus').innerHTML = '<div class="error-box">❌ Bus stats unavailable</div>';
+                return;
+            }
+
+            let html = `
+                <div class="metric">
+                    <span class="metric-label">Mensagens Processadas</span>
+                    <span class="metric-value">${data.total_messages || 0}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Fila Atual</span>
+                    <span class="metric-value">${data.queue_size || 0}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Agentes Ativos</span>
+                    <span class="metric-value">${data.active_agents || 0}</span>
+                </div>
+            `;
+
+            document.getElementById('busStatus').innerHTML = html;
+        }
+
+        async function getAPIMetrics() {
+            const data = await fetchJSON(`${API_BASE}/metrics`);
+            if (!data) {
+                document.getElementById('apiMetrics').innerHTML = '<div class="error-box">❌ Métricas indisponíveis</div>';
+                return;
+            }
+
+            let html = `
+                <div class="metric">
+                    <span class="metric-label">Requisições Total</span>
+                    <span class="metric-value">${data.requests_total || 0}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Tempo Médio</span>
+                    <span class="metric-value">${(data.avg_duration_ms || 0).toFixed(0)}ms</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Taxa de Erro</span>
+                    <span class="metric-value">${(data.error_rate || 0).toFixed(2)}%</span>
+                </div>
+            `;
+
+            document.getElementById('apiMetrics').innerHTML = html;
+        }
+
+        async function getAgents() {
+            const data = await fetchJSON(`${API_BASE}/agents/status`);
+            if (!data || !data.agents || data.agents.length === 0) {
+                document.getElementById('agentsList').innerHTML = '<div class="error-box">ℹ️ Nenhum agente conectado</div>';
+                return;
+            }
+
+            let html = '<div class="agent-list">';
+            data.agents.forEach(agent => {
+                const status = agent.status === 'online' ? 'active' : 'idle';
+                html += `
+                    <div class="agent-item ${status}">
+                        <div>
+                            <div class="agent-name">${agent.name || agent.id}</div>
+                            <small style="color: #9ca3af;">${agent.language || 'Unknown'}</small>
+                        </div>
+                        <div class="agent-badge">${agent.status || 'unknown'}</div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            document.getElementById('agentsList').innerHTML = html;
+        }
+
+        async function getTasks() {
+            const data = await fetchJSON(`${API_BASE}/tasks/running`);
+            if (!data || !data.tasks || data.tasks.length === 0) {
+                document.getElementById('tasksList').innerHTML = '<p style="text-align: center; color: #9ca3af;">✓ Nenhuma tarefa em execução</p>';
+                return;
+            }
+
+            let html = `
+                <table class="tasks-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Agente</th>
+                            <th>Status</th>
+                            <th>Progresso</th>
+                            <th>Tempo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            data.tasks.forEach(task => {
+                const statusColor = task.status === 'success' ? 'success' : task.status === 'error' ? 'error' : 'warning';
+                const progress = task.progress || 0;
+                const timeElapsed = task.started_at ? Math.floor((Date.now() - new Date(task.started_at)) / 1000) : 0;
+
+                html += `
+                    <tr>
+                        <td><code style="font-size: 0.8rem; color: var(--primary);">${task.id.substring(0, 8)}...</code></td>
+                        <td>${task.agent_name || task.agent}</td>
+                        <td>
+                            <span class="status-indicator">
+                                <span class="status-dot ${statusColor}"></span>
+                                ${task.status}
+                            </span>
+                        </td>
+                        <td>
+                            <div style="width: 100px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden;">
+                                <div style="width: ${progress}%; height: 100%; background: var(--primary); transition: width 0.3s;"></div>
+                            </div>
+                        </td>
+                        <td>${timeElapsed}s</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    </tbody>
+                </table>
+            `;
+            document.getElementById('tasksList').innerHTML = html;
+        }
+
+        async function refreshData() {
+            const btn = document.getElementById('refreshBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Atualizando...';
+
+            await Promise.all([
+                getSystemStatus(),
+                getBusStatus(),
+                getAPIMetrics(),
+                getAgents(),
+                getTasks(),
+            ]);
+
+            btn.disabled = false;
+            btn.textContent = '🔄 Atualizar';
+        }
+
+        function startAutoRefresh() {
+            refreshData();
+            autoRefreshInterval = setInterval(refreshData, 5000);
+        }
+
+        document.addEventListener('DOMContentLoaded', startAutoRefresh);
+        window.addEventListener('beforeunload', () => {
+            if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        });
+    </script>
+</body>
+</html>
