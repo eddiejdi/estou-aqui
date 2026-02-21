@@ -357,7 +357,7 @@ sudo systemctl restart <service>
 |----------|-----------|--------|
 | `OLLAMA_HOST` | Servidor LLM | `http://192.168.15.2:11434` |
 | `GITHUB_AGENT_URL` | Helper GitHub local | `http://localhost:8080` |
-| `DATABASE_URL` | Postgres para IPC/memória | `postgresql://postgres:eddie_memory_2026@localhost:5432/postgres` |
+| `DATABASE_URL` | Postgres para IPC/memória | `postgresql://postgres:postgres@localhost:5432/postgres` |
 | `DATA_DIR` | Diretório de dados do interceptor | `/specialized_agents/interceptor_data/` |
 | `REMOTE_ORCHESTRATOR_ENABLED` | Habilita orquestração remota | `false` |
 | `ONDEMAND_ENABLED` | Sistema on-demand de componentes | `true` |

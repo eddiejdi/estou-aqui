@@ -12,6 +12,27 @@ tools: [vscode/getProjectSetupInfo, vscode/installExtension, vscode/newWorkspace
 
 ## 1. Regras gerais de execução
 - Quando terminar us resposta emita um beep do auto falante do PC
+  - O "beep" pode ser feito de várias formas:
+    * **`
+print('\a')`** envia o caractere BEL ao terminal (funciona se houver PC speaker).
+    * Se não existir speaker, gere e reproduza um som via aúdio normal. Um arquivo
+      WAV customizado (1500 Hz, 0.5 s) pode ser criado em `/tmp/custom_beep.wav` com:
+
+      ```python
+      import numpy as np, wave, struct
+      framerate=44100; duration=0.5; freq=1500
+      samples=int(framerate*duration)
+      wf=wave.open('/tmp/custom_beep.wav','w')
+      wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(framerate)
+      for i in range(samples):
+          t=i/framerate
+          value=int(32767.0*np.sin(2*np.pi*freq*t))
+          wf.writeframes(struct.pack('<h',value))
+      wf.close()
+      ```
+
+      Em seguida execute `paplay /tmp/custom_beep.wav` ou use a biblioteca
+      `simpleaudio` em Python.
 - Nunca mantenha  recurso utilizado em execução, execute e após executar elimine o recurso utilizado para não ocupar máquina.
 - Nunca versione o nome da aplicação ex: optimizer_v2.py, uso vai de encontra as boas práticas de programação, se econtrar  algum caso corrija. 
 retire do projeto estou-aqui
@@ -497,7 +518,7 @@ sudo systemctl restart <service>
 |----------|-----------|--------|
 | `OLLAMA_HOST` | Servidor LLM | `http://192.168.15.2:11434` |
 | `GITHUB_AGENT_URL` | Helper GitHub local | `http://localhost:8080` |
-| `DATABASE_URL` | Postgres para IPC/memória | `postgresql://postgres:eddie_memory_2026@localhost:5432/postgres` |
+| `DATABASE_URL` | Postgres para IPC/memória | `postgresql://postgres:postgres@localhost:5432/postgres` |
 | `DATA_DIR` | Diretório de dados do interceptor | `/specialized_agents/interceptor_data/` |
 | `REMOTE_ORCHESTRATOR_ENABLED` | Habilita orquestração remota | `false` |
 | `ONDEMAND_ENABLED` | Sistema on-demand de componentes | `true` |
