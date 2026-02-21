@@ -75,9 +75,9 @@
 - Suporte web (iframe real) e nativo (dashboard simulado)
 
 ### 3.3 Arquivos Modificados
-- `lib/screens/event/event_detail_screen.dart` — botão _JoinCoalitionButton
-- `lib/screens/coalition/coalition_detail_screen.dart` — aba Dashboard + iframe Grafana
-- `lib/screens/coalition/coalition_grafana_stub.dart` — stub para compilação nativa
+- `/app/lib/screens/event/event_detail_screen.dart` — botão _JoinCoalitionButton
+- `/app/lib/screens/coalition/coalition_detail_screen.dart` — aba Dashboard + iframe Grafana
+- `/app/lib/screens/coalition/coalition_grafana_stub.dart` — stub para compilação nativa
 
 ---
 
