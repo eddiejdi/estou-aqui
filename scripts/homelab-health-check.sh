@@ -77,8 +77,17 @@ echo -e "${BOLD}│ INFRAESTRUTURA                                              
 echo -e "${BOLD}└─────────────────────────────────────────────────────────────┘${NC}"
 
 check_service "Pi-hole DNS Container" "ssh -o ConnectTimeout=$TIMEOUT ${HOMELAB_USER}@${HOMELAB_HOST} 'docker ps --filter name=pihole --filter status=running -q'"
+# ensure admin web interface has a non-empty password
+check_service "Pi-hole admin password set" "ssh -o ConnectTimeout=$TIMEOUT ${HOMELAB_USER}@${HOMELAB_HOST} \
+  'docker exec pihole sh -c \"grep -E \\\"^WEBPASSWORD=.+\\\" /etc/pihole/setupVars.conf || exit 1\"'"
 check_service "DNS Resolution (github.com)" "dig @${HOMELAB_HOST} github.com +short +timeout=2"
 check_service "DNS Copilot (default.exp-tas.com)" "dig @${HOMELAB_HOST} default.exp-tas.com +short +timeout=2 | grep -v '^0.0.0.0$'"
+# ensure external resolvers are blocked (bypass prevention)
+check_service "Block 8.8.8.8" "ssh -o ConnectTimeout=$TIMEOUT ${HOMELAB_USER}@${HOMELAB_HOST} \
+  'dig @8.8.8.8 example.com +short +timeout=2 | grep -q "^" && exit 1 || exit 0'"
+check_service "iptables DNS rules" "ssh -o ConnectTimeout=$TIMEOUT ${HOMELAB_USER}@${HOMELAB_HOST} \
+  'iptables -t nat -C PREROUTING -p udp --dport 53 -j DNAT --to-destination ${HOMELAB_HOST}:53 >/dev/null 2>&1'
+">
 
 echo ""
 
