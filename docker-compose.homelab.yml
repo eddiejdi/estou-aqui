@@ -1,7 +1,13 @@
+version: '3.8'
+
+# Docker Compose para deploy da Estou Aqui no homelab (192.168.15.2)
+# Uso: docker-compose -f docker-compose.homelab.yml up -d
+# Acesso: http://192.168.15.2 (web), http://192.168.15.2:3000/api (API)
+
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: estou-aqui-db
+    container_name: estou-aqui-db-homelab
     environment:
       POSTGRES_DB: estou_aqui
       POSTGRES_USER: postgres
@@ -9,27 +15,25 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata-homelab:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
-
-  # Adicionar PostGIS se necessário:
-  # postgis:
-  #   image: postgis/postgis:16-3.4-alpine
-  #   ...
+    networks:
+      - estou-aqui-homelab
 
   api:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: estou-aqui-api
+    container_name: estou-aqui-api-homelab
+    hostname: estou-aqui-api
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_NAME=estou_aqui
@@ -37,25 +41,31 @@ services:
       - DB_PASSWORD=postgres
       - JWT_SECRET=dev_jwt_secret_change_in_production
       - GOOGLE_CLIENT_ID=666885877649-uhl98kcch60l4cqctt2e347nhlhsqta5.apps.googleusercontent.com
-      # Agent Bus host (use Docker host gateway so container can reach the API on the host)
+      # Agent Bus host (use Docker host gateway)
       - AGENT_BUS_URL=http://172.17.0.1:8503
     depends_on:
       postgres:
         condition: service_healthy
-    volumes:
-      - ./backend/src:/app/src
-    command: npm run dev
+    networks:
+      - estou-aqui-homelab
+    restart: unless-stopped
 
   web:
     build:
       context: .
       dockerfile: Dockerfile.web
-    container_name: estou-aqui-web
+    container_name: estou-aqui-web-homelab
     ports:
-      - "80:80"
-      - "8081:80"
+      - "8080:80"
     depends_on:
       - api
+    networks:
+      - estou-aqui-homelab
+    restart: unless-stopped
 
 volumes:
-  pgdata:
+  pgdata-homelab:
+
+networks:
+  estou-aqui-homelab:
+    driver: bridge

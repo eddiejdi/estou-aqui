@@ -1,8 +1,17 @@
 /// Constantes da aplicação
 class AppConstants {
-  // API
-  static const String apiBaseUrl = 'https://estouaqui.rpa4all.com/api';
-  static const String wsUrl = 'https://estouaqui.rpa4all.com';
+  // API - Usa relative paths por padrão (proxy via localhost)
+  // Em produção, a build é feita com:
+  // flutter build web --dart-define=API_BASE_URL=/api --dart-define=WS_URL=/
+  static const String apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: '/api',
+  );
+  
+  static const String wsUrl = String.fromEnvironment(
+    'WS_URL',
+    defaultValue: '/',
+  );
 
   // Storage keys
   static const String tokenKey = 'auth_token';

@@ -11,7 +11,10 @@ import 'package:url_launcher/url_launcher.dart';
 class WebViewScreen extends StatefulWidget {
   const WebViewScreen({super.key});
 
-  static const String siteUrl = 'https://estouaqui.rpa4all.com';
+  // URL da app web rodando no homelab (Docker na porta 8080)
+  // Em produção, usar: 'https://estouaqui.rpa4all.com'
+  // Em dev/homelab, usar: 'http://192.168.15.2:8080'
+  static const String siteUrl = 'http://192.168.15.2:8080';
 
   @override
   State<WebViewScreen> createState() => _WebViewScreenState();

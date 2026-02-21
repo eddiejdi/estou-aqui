@@ -1,4 +1,6 @@
 import 'dart:html' as html;
+// dart:js_util is only available on web; analyzer complains otherwise
+// ignore: uri_does_not_exist
 import 'dart:js_util' as js_util;
 
 /// Log to browser console

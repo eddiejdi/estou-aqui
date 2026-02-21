@@ -14,7 +14,7 @@
     This is a placeholder for base href that will be replaced by the value of
     the `--base-href` argument provided to `flutter build`.
   -->
-  <base href="$FLUTTER_BASE_HREF">
+  <base href="/">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
@@ -29,9 +29,9 @@
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <!-- Google Sign-In (web) -->
+  <!-- Google Sign-In (web) - com timeout -->
   <meta name="google-signin-client_id" content="666885877649-uhl98kcch60l4cqctt2e347nhlhsqta5.apps.googleusercontent.com">
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="https://accounts.google.com/gsi/client" async defer onload="" onerror="console.warn('Google Sign-In carregamento falhou')"></script>
 
   <title>Estou Aqui</title>
   <link rel="manifest" href="manifest.json">

@@ -62,15 +62,92 @@ Infra      → Ollama (:11434) | Docker | GitHub Actions | PostgreSQL | ChromaDB
 3. `telegram_auto_responder` tenta Ollama → fallback OpenWebUI → fallback canned response.
 4. Resposta publicada no bus → `telegram_client` envia via API Telegram preservando `chat_id` e `message_thread_id`.
 
-### 3.4 Portas de serviço
+### 3.4 Mapa completo de portas de serviço
 
-| Serviço | Porta |
-|---------|-------|
-| Streamlit Dashboard | 8502 |
-| API FastAPI | 8503 |
-| Ollama LLM | 11434 |
-| BTC Engine API | 8511 |
-| BTC WebUI API | 8510 |
+> **ATENÇÃO**: Consulte esta tabela antes de expor ou configurar qualquer porta para evitar conflitos.
+
+#### Estou Aqui — Aplicação principal (Docker Compose)
+
+| Porta | Serviço | Protocolo | Tipo | Configuração |
+|-------|---------|-----------|------|-------------|
+| 80 | Nginx (Flutter Web SPA) | HTTP | Externo | `docker-compose.yml`, `Dockerfile.web` |
+| 443 | Produção HTTPS (estouaqui.rpa4all.com) | HTTPS | Externo (prod) | Cloudflare / reverse proxy |
+| 3000 | Express API Backend + Socket.IO | HTTP/WS | Externo | `docker-compose.yml`, `backend/Dockerfile`, `backend/src/server.js` |
+| 3456 | Express API (porta alternativa direta, quando Nginx serve na 3000) | HTTP/WS | Interno (homelab) | `ALERT_INTEGRATION_GUIDE.md`, `scripts/homelab_mcp_server.py` |
+| 5432 | PostgreSQL | TCP | Externo (dev) / Interno (prod) | `docker-compose.yml`, `backend/.env.example` |
+| 8081 | Flutter Web Nginx alias (mapeado → 80 no container) | HTTP | Externo (dev) | `docker-compose.yml` → `8081:80` |
+
+#### Homelab Infrastructure (192.168.15.2)
+
+| Porta | Serviço | Protocolo | Tipo | Configuração |
+|-------|---------|-----------|------|-------------|
+| 8053 | Pi-hole Admin API | HTTP | Interno | Configuração Pi-hole Docker |
+| 8080 | Open WebUI | HTTP | Interno | `dashboard_server.py`, `MULTI_AGENT_DASHBOARD_GUIDE.md` |
+| 8085 | Homelab Copilot Agent (FastAPI/Uvicorn) | HTTP | Interno | `scripts/systemd/homelab_copilot_agent.service.sample` |
+| 8088 | Secrets Agent (cofre de credenciais) | HTTP | Interno | `scripts/secrets-agent/`, seção 5 deste doc |
+| 8502 | Streamlit Dashboard | HTTP | Interno | `DASHBOARD_QUICKSTART.sh` |
+| 8503 | Agent Communication Bus / Coordinator API (FastAPI) | HTTP/WS | Interno | `docker-compose.yml` → `AGENT_BUS_URL`, `dashboards/multi_agent_dashboard.html` |
+| 8504 | Multi-Agent Dashboard Server (padrão código) | HTTP | Interno | `dashboard_server.py` |
+| 8505 | Multi-Agent Dashboard Server (padrão docs) | HTTP | Interno | `MULTI_AGENT_DASHBOARD_GUIDE.md` |
+| 8510 | BTC WebUI API | HTTP | Interno | Configuração BTC |
+| 8511 | BTC Engine API | HTTP | Interno | Configuração BTC |
+| 8512 | LLM-Optimizer Proxy (OpenAI-compatible p/ CLINE) | HTTP | Interno | `.github/copilot-instructions.md`, `docs/LLM_OPTIMIZER.md` |
+| 11434 | Ollama LLM | HTTP | Interno | `OLLAMA_HOST` env var, systemd service |
+
+#### Monitoring Stack
+
+| Porta | Serviço | Protocolo | Tipo | Configuração |
+|-------|---------|-----------|------|-------------|
+| 3002 | Grafana | HTTP | Interno | `prints/README.md`, `docs/LLM_OPTIMIZER.md` |
+| 3100 | Loki (log aggregation) | HTTP | Interno | `loki-config.yaml` |
+| 8001 | Jira Worker / Secrets Agent Prometheus metrics | HTTP (Prometheus) | Interno | Seção 5.5 deste doc |
+| 9080 | Promtail (HTTP listen) | HTTP | Interno | `promtail-config.yaml` |
+| 9090 | Prometheus | HTTP | Interno | `docs/LLM_OPTIMIZER.md`, `tests/test_prometheus_runbooks.py` |
+| 9093 | AlertManager | HTTP | Interno | `tests/test_alertmanager_delivery.py`, `ALERT_INTEGRATION_GUIDE.md` |
+| 19095 | Promtail (gRPC listen) | gRPC | Interno | `promtail-config.yaml` |
+
+#### Utilitários / Dev / Testes
+
+| Porta | Serviço | Protocolo | Tipo | Configuração |
+|-------|---------|-----------|------|-------------|
+| 8080 | Flutter dev server (`flutter run --web-port=8080`) | HTTP | Dev local | Testes Selenium |
+| 8081 | Flutter dev server (porta alternativa) | HTTP | Dev local | Testes Selenium |
+| 8686 | Flutter Web (testes marketing Selenium) | HTTP | Dev local | `tests/selenium/capture_marketing_screenshots.py` |
+| 9877 | Epson L380 Print Service | HTTP | Interno (homelab) | `scripts/setup-epson-l380.sh` |
+
+#### Resumo rápido (ordenado por porta)
+
+| Porta | Serviço |
+|-------|---------|
+| 80 | Nginx (Flutter Web SPA) |
+| 443 | HTTPS Produção |
+| 3000 | Express API Backend |
+| 3002 | Grafana |
+| 3100 | Loki |
+| 3456 | Express API (alternativa) |
+| 5432 | PostgreSQL |
+| 8001 | Métricas Prometheus (Jira/Secrets) |
+| 8053 | Pi-hole Admin API |
+| 8080 | Open WebUI / Flutter dev |
+| 8081 | Flutter Web Nginx alias / dev |
+| 8085 | Homelab Copilot Agent |
+| 8088 | Secrets Agent |
+| 8502 | Streamlit Dashboard |
+| 8503 | Agent Bus / Coordinator API |
+| 8504 | Multi-Agent Dashboard |
+| 8505 | Multi-Agent Dashboard (alt) |
+| 8510 | BTC WebUI API |
+| 8511 | BTC Engine API |
+| 8512 | LLM-Optimizer Proxy |
+| 8686 | Flutter Web (testes Selenium) |
+| 9080 | Promtail HTTP |
+| 9090 | Prometheus |
+| 9093 | AlertManager |
+| 9877 | Epson L380 Print Service |
+| 11434 | Ollama LLM |
+| 19095 | Promtail gRPC |
+
+> **Total: 27 portas distintas.** Antes de alocar uma nova porta, verifique esta lista para evitar conflitos.
 
 ---
 
@@ -97,7 +174,7 @@ await manager.push_to_github("python", "meu-projeto", repo_name="meu-repo")
 ```
 
 ### 4.4 IPC cross-process (Postgres)
-- Bus in-memory é process-local. Para IPC entre diretor/coordinator/api, use `tools/agent_ipc.py` com `DATABASE_URL`.
+- Bus in-memory é process-local. Para IPC entre diretor/coordinator/api, use `/tools/agent_ipc.py` com `DATABASE_URL`.
 ```python
 from tools import agent_ipc
 rid = agent_ipc.publish_request('assistant', 'DIRETOR', 'Please authorize deploy', {'env': 'prod'})
@@ -121,7 +198,7 @@ agent.update_decision_feedback(dec_id, success=True, details={"fix_worked": True
 
 - **Nunca** commitar credenciais em texto claro no git.
 - **Cofre oficial**: agent secrets (Bitwarden/Vaultwarden via `bw` CLI). Nomes padrão: `eddie/telegram_bot_token`, `eddie/github_token`, `eddie/waha_api_key`, `eddie/deploy_password`, `eddie/webui_admin_password`.
-- **Fallback**: `tools/simple_vault/` (GPG + passphrase); manter passphrase com `chmod 600`.
+- **Fallback**: `/tools/simple_vault/` (GPG + passphrase); manter passphrase com `chmod 600`.
 - Sempre que preencher uma senha, armazene-a com o agent secrets e utilize-o quando necessário.
 - Caso existam segredos locais, migre-os para o cofre oficial.
 - Obtenha dados faltantes do cofre ou da documentação antes de prosseguir.
@@ -182,7 +259,7 @@ sudo systemctl restart <service>
 - `pytest -q` (padrão); use `-m integration` para testes que requerem serviços locais (API 8503), `-m external` para libs externas (chromadb, paramiko, playwright).
 - Top-level test files ignorados por padrão; set `RUN_ALL_TESTS=1` para override.
 - Selenium E2E: `pytest tests/test_site_selenium.py` — manter fallback selectors para mudanças de DOM.
-- Para simular aprovação do Diretor: `tools/force_diretor_response.py` (local) ou `tools/consume_diretor_db_requests.py` (se `DATABASE_URL` set).
+- Para simular aprovação do Diretor: `/tools/force_diretor_response.py` (local) ou `/tools/consume_diretor_db_requests.py` (se `DATABASE_URL` set).
 
 ---
 
@@ -266,7 +343,7 @@ sudo systemctl restart <service>
 
 ## 13. Interceptor de conversas
 
-- Captura automática via bus → SQLite/cache → 3 interfaces (API, Dashboard, CLI).
+- Captura automática via bus → PostgreSQL (`DATABASE_URL`) → 3 interfaces (API, Dashboard, CLI).
 - Detecta 8 fases: INITIATED, ANALYZING, PLANNING, CODING, TESTING, DEPLOYING, COMPLETED, FAILED.
 - 25+ endpoints API em `/interceptor/*`.
 - W ebSocket para tempo real: `ws://localhost:8503/interceptor/ws/conversations`.
@@ -280,8 +357,8 @@ sudo systemctl restart <service>
 |----------|-----------|--------|
 | `OLLAMA_HOST` | Servidor LLM | `http://192.168.15.2:11434` |
 | `GITHUB_AGENT_URL` | Helper GitHub local | `http://localhost:8080` |
-| `DATABASE_URL` | Postgres para IPC/memória | `postgresql://postgres:eddie_memory_2026@localhost:5432/postgres` |
-| `DATA_DIR` | Diretório de dados do interceptor | `specialized_agents/interceptor_data/` |
+| `DATABASE_URL` | Postgres para IPC/memória | `postgresql://postgres:postgres@localhost:5432/postgres` |
+| `DATA_DIR` | Diretório de dados do interceptor | `/specialized_agents/interceptor_data/` |
 | `REMOTE_ORCHESTRATOR_ENABLED` | Habilita orquestração remota | `false` |
 | `ONDEMAND_ENABLED` | Sistema on-demand de componentes | `true` |
 
@@ -300,7 +377,7 @@ sudo systemctl restart <service>
 | Tunnel OpenWebUI inacessível | Verificar `openwebui-ssh-tunnel.service` ou config `cloudflared` em `site/deploy/` |
 | Dashboard white screen | Auditar imports (`grep -r "from dev_agent" . --include="*.py"`), reiniciar Streamlit |
 | Conflito de portas | `sudo ss -ltnp | grep <porta>` → `sudo kill <pid>`, ou usar systemd |
-| SQLite corrompido | Remover `.db` — será recriado automaticamente |
+| Postgres interceptor corrompido | Verificar conexão `DATABASE_URL`, reiniciar serviço — tabelas serão recriadas automaticamente |
 | Ping agent sem resposta | Verificar `/tmp/agent_ping_results.txt` |
 
 ---
@@ -354,19 +431,19 @@ Prioridade de métodos quando SSH está indisponível:
 
 ## 20. Referências rápidas
 
-- **Documentação geral**: `docs/confluence/pages/OPERATIONS.md`
-- **Arquitetura**: `docs/ARCHITECTURE.md`, `docs/confluence/pages/ARCHITECTURE.md`
-- **Secrets**: `docs/SECRETS.md`, `docs/VAULT_README.md`
-- **Troubleshooting**: `docs/TROUBLESHOOTING.md`
-- **Quality Gate**: `docs/REVIEW_QUALITY_GATE.md`, `docs/REVIEW_SYSTEM_USAGE.md`
-- **Agent Memory**: `docs/AGENT_MEMORY.md`
-- **Server Config**: `docs/SERVER_CONFIG.md`
-- **Deploy homelab**: `docs/DEPLOY_TO_HOMELAB.md`
-- **Lições aprendidas**: `docs/LESSONS_LEARNED_2026-02-02.md`, `docs/LESSONS_LEARNED_FLYIO_REMOVAL.md`
-- **Operações estendidas**: `.github/copilot-instructions-extended.md`
-- **Setup geral**: `docs/SETUP.md`
-- **Team Structure**: `TEAM_STRUCTURE.md`, `TEAM_BACKLOG.md`
-- **Interceptor**: `INTERCEPTOR_README.md`, `INTERCEPTOR_SUMMARY.md`
-- **Distributed System**: `DISTRIBUTED_SYSTEM.md`
-- **Recovery**: `tools/homelab_recovery/README.md`, `RECOVERY_SUMMARY.md`
-- **ITIL**: `PROJECT_MANAGEMENT_ITIL_BEST_PRACTICES.md`
+- **Documentação geral**: `/docs/confluence/pages/OPERATIONS.md`
+- **Arquitetura**: `/docs/ARCHITECTURE.md`, `/docs/confluence/pages/ARCHITECTURE.md`
+- **Secrets**: `/docs/SECRETS.md`, `/docs/VAULT_README.md`
+- **Troubleshooting**: `/docs/TROUBLESHOOTING.md`
+- **Quality Gate**: `/docs/REVIEW_QUALITY_GATE.md`, `/docs/REVIEW_SYSTEM_USAGE.md`
+- **Agent Memory**: `/docs/AGENT_MEMORY.md`
+- **Server Config**: `/docs/SERVER_CONFIG.md`
+- **Deploy homelab**: `/docs/DEPLOY_TO_HOMELAB.md`
+- **Lições aprendidas**: `/docs/LESSONS_LEARNED_2026-02-02.md`, `/docs/LESSONS_LEARNED_FLYIO_REMOVAL.md`
+- **Operações estendidas**: `/.github/copilot-instructions-extended.md`
+- **Setup geral**: `/docs/SETUP.md`
+- **Team Structure**: `/TEAM_STRUCTURE.md`, `/TEAM_BACKLOG.md`
+- **Interceptor**: `/INTERCEPTOR_README.md`, `/INTERCEPTOR_SUMMARY.md`
+- **Distributed System**: `/DISTRIBUTED_SYSTEM.md`
+- **Recovery**: `/tools/homelab_recovery/README.md`, `/RECOVERY_SUMMARY.md`
+- **ITIL**: `/PROJECT_MANAGEMENT_ITIL_BEST_PRACTICES.md`

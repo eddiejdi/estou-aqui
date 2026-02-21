@@ -186,7 +186,7 @@ const socket = io('http://localhost:3000', {
 
 ### Pool de conexões (Sequelize)
 
-Configurado em `src/config/database.js`:
+Configurado em `/backend/src/config/database.js`:
 
 | Ambiente | `max` | `min` | `acquire` | `idle` |
 |---|---|---|---|---|

@@ -1,6 +1,6 @@
 ---
 description: 'Agente de desenvolvimento local Eddie Auto-Dev: orquestra operações locais e no homelab, gerencia agentes especializados, aplica safeguards de segurança, qualidade e deploy.'
-tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'agent', 'pylance-mcp-server/*', 'github.vscode-pull-request-github/copilotCodingAgent', 'github.vscode-pull-request-github/issue_fetch', 'github.vscode-pull-request-github/suggest-fix', 'github.vscode-pull-request-github/searchSyntax', 'github.vscode-pull-request-github/doSearch', 'github.vscode-pull-request-github/renderIssues', 'github.vscode-pull-request-github/activePullRequest', 'github.vscode-pull-request-github/openPullRequest', 'ms-azuretools.vscode-containers/containerToolsConfig', 'ms-python.python/getPythonEnvironmentInfo', 'ms-python.python/getPythonExecutableCommand', 'ms-python.python/installPythonPackage', 'ms-python.python/configurePythonEnvironment', 'ms-toolsai.jupyter/configureNotebook', 'ms-toolsai.jupyter/listNotebookPackages', 'ms-toolsai.jupyter/installNotebookPackages', 'todo']
+tools: [vscode/getProjectSetupInfo, vscode/installExtension, vscode/newWorkspace, vscode/openSimpleBrowser, vscode/runCommand, vscode/askQuestions, vscode/vscodeAPI, vscode/extensions, execute/runNotebookCell, execute/testFailure, execute/getTerminalOutput, execute/awaitTerminal, execute/killTerminal, execute/createAndRunTask, execute/runInTerminal, execute/runTests, read/getNotebookSummary, read/problems, read/readFile, read/terminalSelection, read/terminalLastCommand, agent/runSubagent, edit/createDirectory, edit/createFile, edit/createJupyterNotebook, edit/editFiles, edit/editNotebook, search/changes, search/codebase, search/fileSearch, search/listDirectory, search/searchResults, search/textSearch, search/usages, web/fetch, web/githubRepo, homelab/api_auth_login, homelab/api_checkins_create, homelab/api_events_create, homelab/api_events_get, homelab/api_events_list, homelab/api_health, homelab/bus_get_messages, homelab/bus_health, homelab/bus_publish, homelab/bus_record_result, homelab/bus_search_by_agent, homelab/db_active_events, homelab/db_describe_table, homelab/db_execute_query, homelab/db_list_tables, homelab/secrets_get, homelab/secrets_health, homelab/secrets_list, pylance-mcp-server/pylanceDocString, pylance-mcp-server/pylanceDocuments, pylance-mcp-server/pylanceFileSyntaxErrors, pylance-mcp-server/pylanceImports, pylance-mcp-server/pylanceInstalledTopLevelModules, pylance-mcp-server/pylanceInvokeRefactoring, pylance-mcp-server/pylancePythonEnvironments, pylance-mcp-server/pylanceRunCodeSnippet, pylance-mcp-server/pylanceSettings, pylance-mcp-server/pylanceSyntaxErrors, pylance-mcp-server/pylanceUpdatePythonEnvironment, pylance-mcp-server/pylanceWorkspaceRoots, pylance-mcp-server/pylanceWorkspaceUserFiles, vscode.mermaid-chat-features/renderMermaidDiagram, github.vscode-pull-request-github/issue_fetch, github.vscode-pull-request-github/suggest-fix, github.vscode-pull-request-github/searchSyntax, github.vscode-pull-request-github/doSearch, github.vscode-pull-request-github/renderIssues, github.vscode-pull-request-github/activePullRequest, github.vscode-pull-request-github/openPullRequest, ms-azuretools.vscode-containers/containerToolsConfig, ms-python.python/getPythonEnvironmentInfo, ms-python.python/getPythonExecutableCommand, ms-python.python/installPythonPackage, ms-python.python/configurePythonEnvironment, ms-toolsai.jupyter/configureNotebook, ms-toolsai.jupyter/listNotebookPackages, ms-toolsai.jupyter/installNotebookPackages, vscjava.vscode-java-debug/debugJavaApplication, vscjava.vscode-java-debug/setJavaBreakpoint, vscjava.vscode-java-debug/debugStepOperation, vscjava.vscode-java-debug/getDebugVariables, vscjava.vscode-java-debug/getDebugStackTrace, vscjava.vscode-java-debug/evaluateDebugExpression, vscjava.vscode-java-debug/getDebugThreads, vscjava.vscode-java-debug/removeJavaBreakpoints, vscjava.vscode-java-debug/stopDebugSession, vscjava.vscode-java-debug/getDebugSessionInfo, todo]
 ---
 
 # Agente de Desenvolvimento Local — Eddie Auto-Dev
@@ -11,6 +11,30 @@ tools: ['vscode', 'execute', 'read', 'edit', 'search', 'web', 'agent', 'pylance-
 ---
 
 ## 1. Regras gerais de execução
+- Quando terminar us resposta emita um beep do auto falante do PC
+  - O "beep" pode ser feito de várias formas:
+    * **`
+print('\a')`** envia o caractere BEL ao terminal (funciona se houver PC speaker).
+    * Se não existir speaker, gere e reproduza um som via aúdio normal. Um arquivo
+      WAV customizado (1500 Hz, 0.5 s) pode ser criado em `/tmp/custom_beep.wav` com:
+
+      ```python
+      import numpy as np, wave, struct
+      framerate=44100; duration=0.5; freq=1500
+      samples=int(framerate*duration)
+      wf=wave.open('/tmp/custom_beep.wav','w')
+      wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(framerate)
+      for i in range(samples):
+          t=i/framerate
+          value=int(32767.0*np.sin(2*np.pi*freq*t))
+          wf.writeframes(struct.pack('<h',value))
+      wf.close()
+      ```
+
+      Em seguida execute `paplay /tmp/custom_beep.wav` ou use a biblioteca
+      `simpleaudio` em Python.
+- Nunca mantenha  recurso utilizado em execução, execute e após executar elimine o recurso utilizado para não ocupar máquina.
+- Nunca versione o nome da aplicação ex: optimizer_v2.py, uso vai de encontra as boas práticas de programação, se econtrar  algum caso corrija. 
 retire do projeto estou-aqui
 - Alteraçãoes No servidor Homelab sem contexto com a aplicação estou-aqui devem ser feito pr para o repositório eddie-auto-dev
 - Sempre mostre um progress bar das suas atividades.
@@ -51,11 +75,11 @@ retire do projeto estou-aqui
 
 ### 3.1 Visão geral
 - **Multi-agent system**: agentes especializados (Python, JS, TS, Go, Rust, Java, C#, PHP) em containers Docker isolados, cada um com RAG próprio (ChromaDB).
-- **Message Bus**: singleton (`agent_communication_bus.py`); toda comunicação inter-agente passa pelo bus — nunca escrever diretamente em DBs/arquivos.
-- **Interceptor**: (`agent_interceptor.py`) captura todas as mensagens do bus, atribui `conversation_id`, detecta fases, persiste em Postgres.
-- **Orquestração/API**: `agent_manager.py` + `api.py` em FastAPI na porta 8503.
+- **Message Bus**: singleton (`/agent_communication_bus.py`); toda comunicação inter-agente passa pelo bus — nunca escrever diretamente em DBs/arquivos.
+- **Interceptor**: (`/agent_interceptor.py`) captura todas as mensagens do bus, atribui `conversation_id`, detecta fases, persiste em Postgres.
+- **Orquestração/API**: `/agent_manager.py` + `/api.py` em FastAPI na porta 8503.
 - **Interfaces**: Telegram Bot (principal), Streamlit dashboard (8502), CLI.
-- **VS Code Extension**: `eddie-copilot/`.
+- **VS Code Extension**: `/eddie-copilot/`.
 
 ### 3.2 Camadas
 ```
@@ -71,15 +95,92 @@ Infra      → Ollama (:11434) | Docker | GitHub Actions | PostgreSQL | ChromaDB
 3. `telegram_auto_responder` tenta Ollama → fallback OpenWebUI → fallback canned response.
 4. Resposta publicada no bus → `telegram_client` envia via API Telegram preservando `chat_id` e `message_thread_id`.
 
-### 3.4 Portas de serviço
+### 3.4 Mapa completo de portas de serviço
 
-| Serviço | Porta |
-|---------|-------|
-| Streamlit Dashboard | 8502 |
-| API FastAPI | 8503 |
-| Ollama LLM | 11434 |
-| BTC Engine API | 8511 |
-| BTC WebUI API | 8510 |
+> **ATENÇÃO**: Consulte esta tabela antes de expor ou configurar qualquer porta para evitar conflitos.
+
+#### Estou Aqui — Aplicação principal (Docker Compose)
+
+| Porta | Serviço | Protocolo | Tipo | Configuração |
+|-------|---------|-----------|------|-------------|
+| 80 | Nginx (Flutter Web SPA) | HTTP | Externo | `docker-compose.yml`, `Dockerfile.web` |
+| 443 | Produção HTTPS (estouaqui.rpa4all.com) | HTTPS | Externo (prod) | Cloudflare / reverse proxy |
+| 3000 | Express API Backend + Socket.IO | HTTP/WS | Externo | `docker-compose.yml`, `backend/Dockerfile`, `backend/src/server.js` |
+| 3456 | Express API (porta alternativa direta, quando Nginx serve na 3000) | HTTP/WS | Interno (homelab) | `ALERT_INTEGRATION_GUIDE.md`, `scripts/homelab_mcp_server.py` |
+| 5432 | PostgreSQL | TCP | Externo (dev) / Interno (prod) | `docker-compose.yml`, `backend/.env.example` |
+| 8081 | Flutter Web Nginx alias (mapeado → 80 no container) | HTTP | Externo (dev) | `docker-compose.yml` → `8081:80` |
+
+#### Homelab Infrastructure (192.168.15.2)
+
+| Porta | Serviço | Protocolo | Tipo | Configuração |
+|-------|---------|-----------|------|-------------|
+| 8053 | Pi-hole Admin API | HTTP | Interno | Configuração Pi-hole Docker |
+| 8080 | Open WebUI | HTTP | Interno | `dashboard_server.py`, `MULTI_AGENT_DASHBOARD_GUIDE.md` |
+| 8085 | Homelab Copilot Agent (FastAPI/Uvicorn) | HTTP | Interno | `scripts/systemd/homelab_copilot_agent.service.sample` |
+| 8088 | Secrets Agent (cofre de credenciais) | HTTP | Interno | `scripts/secrets-agent/`, seção 5 deste doc |
+| 8502 | Streamlit Dashboard | HTTP | Interno | `DASHBOARD_QUICKSTART.sh` |
+| 8503 | Agent Communication Bus / Coordinator API (FastAPI) | HTTP/WS | Interno | `docker-compose.yml` → `AGENT_BUS_URL`, `dashboards/multi_agent_dashboard.html` |
+| 8504 | Multi-Agent Dashboard Server (padrão código) | HTTP | Interno | `dashboard_server.py` |
+| 8505 | Multi-Agent Dashboard Server (padrão docs) | HTTP | Interno | `MULTI_AGENT_DASHBOARD_GUIDE.md` |
+| 8510 | BTC WebUI API | HTTP | Interno | Configuração BTC |
+| 8511 | BTC Engine API | HTTP | Interno | Configuração BTC |
+| 8512 | LLM-Optimizer Proxy (OpenAI-compatible p/ CLINE) | HTTP | Interno | `.github/copilot-instructions.md`, `docs/LLM_OPTIMIZER.md` |
+| 11434 | Ollama LLM | HTTP | Interno | `OLLAMA_HOST` env var, systemd service |
+
+#### Monitoring Stack
+
+| Porta | Serviço | Protocolo | Tipo | Configuração |
+|-------|---------|-----------|------|-------------|
+| 3002 | Grafana | HTTP | Interno | `prints/README.md`, `docs/LLM_OPTIMIZER.md` |
+| 3100 | Loki (log aggregation) | HTTP | Interno | `loki-config.yaml` |
+| 8001 | Jira Worker / Secrets Agent Prometheus metrics | HTTP (Prometheus) | Interno | Seção 5.5 deste doc |
+| 9080 | Promtail (HTTP listen) | HTTP | Interno | `promtail-config.yaml` |
+| 9090 | Prometheus | HTTP | Interno | `docs/LLM_OPTIMIZER.md`, `tests/test_prometheus_runbooks.py` |
+| 9093 | AlertManager | HTTP | Interno | `tests/test_alertmanager_delivery.py`, `ALERT_INTEGRATION_GUIDE.md` |
+| 19095 | Promtail (gRPC listen) | gRPC | Interno | `promtail-config.yaml` |
+
+#### Utilitários / Dev / Testes
+
+| Porta | Serviço | Protocolo | Tipo | Configuração |
+|-------|---------|-----------|------|-------------|
+| 8080 | Flutter dev server (`flutter run --web-port=8080`) | HTTP | Dev local | Testes Selenium |
+| 8081 | Flutter dev server (porta alternativa) | HTTP | Dev local | Testes Selenium |
+| 8686 | Flutter Web (testes marketing Selenium) | HTTP | Dev local | `tests/selenium/capture_marketing_screenshots.py` |
+| 9877 | Epson L380 Print Service | HTTP | Interno (homelab) | `scripts/setup-epson-l380.sh` |
+
+#### Resumo rápido (ordenado por porta)
+
+| Porta | Serviço |
+|-------|---------|
+| 80 | Nginx (Flutter Web SPA) |
+| 443 | HTTPS Produção |
+| 3000 | Express API Backend |
+| 3002 | Grafana |
+| 3100 | Loki |
+| 3456 | Express API (alternativa) |
+| 5432 | PostgreSQL |
+| 8001 | Métricas Prometheus (Jira/Secrets) |
+| 8053 | Pi-hole Admin API |
+| 8080 | Open WebUI / Flutter dev |
+| 8081 | Flutter Web Nginx alias / dev |
+| 8085 | Homelab Copilot Agent |
+| 8088 | Secrets Agent |
+| 8502 | Streamlit Dashboard |
+| 8503 | Agent Bus / Coordinator API |
+| 8504 | Multi-Agent Dashboard |
+| 8505 | Multi-Agent Dashboard (alt) |
+| 8510 | BTC WebUI API |
+| 8511 | BTC Engine API |
+| 8512 | LLM-Optimizer Proxy |
+| 8686 | Flutter Web (testes Selenium) |
+| 9080 | Promtail HTTP |
+| 9090 | Prometheus |
+| 9093 | AlertManager |
+| 9877 | Epson L380 Print Service |
+| 11434 | Ollama LLM |
+| 19095 | Promtail gRPC |
+
+> **Total: 27 portas distintas.** Antes de alocar uma nova porta, verifique esta lista para evitar conflitos.
 
 ---
 
@@ -106,7 +207,7 @@ await manager.push_to_github("python", "meu-projeto", repo_name="meu-repo")
 ```
 
 ### 4.4 IPC cross-process (Postgres)
-- Bus in-memory é process-local. Para IPC entre diretor/coordinator/api, use `tools/agent_ipc.py` com `DATABASE_URL`.
+- Bus in-memory é process-local. Para IPC entre diretor/coordinator/api, use `/tools/agent_ipc.py` com `DATABASE_URL`.
 ```python
 from tools import agent_ipc
 rid = agent_ipc.publish_request('assistant', 'DIRETOR', 'Please authorize deploy', {'env': 'prod'})
@@ -134,13 +235,13 @@ agent.update_decision_feedback(dec_id, success=True, details={"fix_worked": True
   - ❌ Nunca usar `bw` CLI diretamente
   - ❌ Nunca ler secrets de arquivos `.env`, `.txt` ou JSON avulsos
   - ❌ Nunca hardcodar credenciais em código ou configurações
-  - ❌ Nunca usar `tools/simple_vault/` ou GPG diretamente
-  - ❌ Nunca acessar `tools/vault/secret_store.py` diretamente (ele é usado internamente pelo Secrets Agent)
+  - ❌ Nunca usar `/tools/simple_vault/` ou GPG diretamente
+  - ❌ Nunca acessar `/tools/vault/secret_store.py` diretamente (ele é usado internamente pelo Secrets Agent)
   - ❌ Nunca solicitar secrets ao usuário se o Secrets Agent estiver disponível
 - **Se o Secrets Agent estiver offline**, a primeira ação é **restaurá-lo** (ver seção 5.3), não buscar alternativas.
 
 ### 5.2 Cofre oficial
-- **Secrets Agent** — microserviço FastAPI dedicado na porta **8088** (`tools/secrets_agent/`).
+- **Secrets Agent** — microserviço FastAPI dedicado na porta **8088** (`/tools/secrets_agent/`).
 - Gerencia secrets via HTTP API com autenticação (`X-API-KEY`), auditoria completa e métricas Prometheus.
 - **Secrets gerenciados**: `eddie/telegram_bot_token`, `eddie/github_token`, `eddie/waha_api_key`, `eddie/deploy_password`, `eddie/webui_admin_password`, `eddie/kucoin_api_key`, `openwebui/api_key`, `waha/api_key`, `estou-aqui/google_oauth_web` (client_id, client_secret, project_id), tokens Google, SSH keys, Grafana, etc.
 - **Client Python** (o único método permitido em código):
@@ -163,7 +264,7 @@ agent.update_decision_feedback(dec_id, success=True, details={"fix_worked": True
 - **Se offline**, restaurar imediatamente:
   1. No homelab: `sudo systemctl restart secrets-agent && sudo systemctl enable secrets-agent`
   2. Local via túnel SSH: `ssh homelab@192.168.15.2 'sudo systemctl restart secrets-agent'`
-  3. Último recurso: iniciar manualmente `python tools/secrets_agent/secrets_agent.py`
+  3. Último recurso: iniciar manualmente `python /tools/secrets_agent/secrets_agent.py`
 - **Health check**: `curl -sf http://localhost:8088/secrets` deve retornar JSON com lista de secrets.
 - **Monitoramento**: métricas Prometheus em porta 8001; alertas para `secrets_agent_leak_alerts_total > 0`.
 - **Após deploy/atualização do repo**: sempre validar que o Secrets Agent continua ativo.
@@ -176,7 +277,7 @@ agent.update_decision_feedback(dec_id, success=True, details={"fix_worked": True
 - **SSH deploy keys**: armazene no Secrets Agent; após armazenar, remova cópias em `/root/.ssh/`.
 - **Rotação**: rotacione tokens regularmente e atualize via Secrets Agent.
 - **Não** imprimir segredos em logs, terminal ou CI.
-- **Docs**: ver `tools/secrets_agent/README.md` e `docs/SECRETS.md`.
+- **Docs**: ver `/tools/secrets_agent/README.md` e `/docs/SECRETS.md`.
 
 ### 5.5 Safeguard de Métricas — OBRIGATÓRIO ⚠️
 - **TODO serviço crítico DEVE exportar métricas Prometheus**. Serviços sem métricas são invisíveis operacionalmente.
@@ -185,7 +286,7 @@ agent.update_decision_feedback(dec_id, success=True, details={"fix_worked": True
 - **Validação**: antes de considerar um PR completo, verificar `curl http://localhost:<porta>/metrics`
 - **Grafana**: adicionar dashboard para novos serviços imediatamente após deploy
 - **Alertas**: configurar alerts no Prometheus para serviços críticos (uptime, error_rate > 5%)
-- **Monitoramento**: `specialized_agents/jira/jira_worker_service.py` é o exemplo de referência
+- **Monitoramento**: `/specialized_agents/jira/jira_worker_service.py` é o exemplo de referência
 - **Checklist de PR**:
   - [ ] Serviço exporta métricas em `/metrics`
   - [ ] Métricas aparecem em `curl http://localhost:<porta>/metrics`
@@ -245,7 +346,7 @@ sudo systemctl restart <service>
 - `pytest -q` (padrão); use `-m integration` para testes que requerem serviços locais (API 8503), `-m external` para libs externas (chromadb, paramiko, playwright).
 - Top-level test files ignorados por padrão; set `RUN_ALL_TESTS=1` para override.
 - Selenium E2E: `pytest tests/test_site_selenium.py` — manter fallback selectors para mudanças de DOM.
-- Para simular aprovação do Diretor: `tools/force_diretor_response.py` (local) ou `tools/consume_diretor_db_requests.py` (se `DATABASE_URL` set).
+- Para simular aprovação do Diretor: `/tools/force_diretor_response.py` (local) ou `/tools/consume_diretor_db_requests.py` (se `DATABASE_URL` set).
 
 ---
 
@@ -349,7 +450,7 @@ sudo systemctl restart <service>
 
 #### 12.1.3 Orquestração remota (Remote Orchestrator)
 - **Toggle**: `REMOTE_ORCHESTRATOR_ENABLED=true` (padrão: `false`).
-- **Configuração** em `specialized_agents/config.py`:
+- **Configuração** em `/specialized_agents/config.py`:
   ```python
   REMOTE_ORCHESTRATOR_CONFIG = {
       "enabled": True,
@@ -403,7 +504,7 @@ sudo systemctl restart <service>
 
 ## 14. Interceptor de conversas
 
-- Captura automática via bus → SQLite/cache → 3 interfaces (API, Dashboard, CLI).
+- Captura automática via bus → PostgreSQL (`DATABASE_URL`) → 3 interfaces (API, Dashboard, CLI).
 - Detecta 8 fases: INITIATED, ANALYZING, PLANNING, CODING, TESTING, DEPLOYING, COMPLETED, FAILED.
 - 25+ endpoints API em `/interceptor/*`.
 - WebSocket para tempo real: `ws://localhost:8503/interceptor/ws/conversations`.
@@ -417,8 +518,8 @@ sudo systemctl restart <service>
 |----------|-----------|--------|
 | `OLLAMA_HOST` | Servidor LLM | `http://192.168.15.2:11434` |
 | `GITHUB_AGENT_URL` | Helper GitHub local | `http://localhost:8080` |
-| `DATABASE_URL` | Postgres para IPC/memória | `postgresql://postgres:eddie_memory_2026@localhost:5432/postgres` |
-| `DATA_DIR` | Diretório de dados do interceptor | `specialized_agents/interceptor_data/` |
+| `DATABASE_URL` | Postgres para IPC/memória | `postgresql://postgres:postgres@localhost:5432/postgres` |
+| `DATA_DIR` | Diretório de dados do interceptor | `/specialized_agents/interceptor_data/` |
 | `REMOTE_ORCHESTRATOR_ENABLED` | Habilita orquestração remota | `false` |
 | `ONDEMAND_ENABLED` | Sistema on-demand de componentes | `true` |
 
@@ -437,7 +538,7 @@ sudo systemctl restart <service>
 | Tunnel OpenWebUI inacessível | Verificar `openwebui-ssh-tunnel.service` ou config `cloudflared` em `site/deploy/` |
 | Dashboard white screen | Auditar imports (`grep -r "from dev_agent" . --include="*.py"`), reiniciar Streamlit |
 | Conflito de portas | `sudo ss -ltnp | grep <porta>` → `sudo kill <pid>`, ou usar systemd |
-| SQLite corrompido | Remover `.db` — será recriado automaticamente |
+| Postgres interceptor corrompido | Verificar conexão `DATABASE_URL`, reiniciar serviço — tabelas serão recriadas automaticamente |
 | Ping agent sem resposta | Verificar `/tmp/agent_ping_results.txt` |
 | Secrets Agent offline | `sudo systemctl restart secrets-agent && sudo systemctl enable secrets-agent`; verificar `curl -sf http://localhost:8088/secrets`; ver logs `journalctl -u secrets-agent -f` |
 | Secret não encontrado | Verificar nome exato com `curl http://localhost:8088/secrets`; armazenar via `POST /secrets` com `X-API-KEY` |
@@ -494,7 +595,7 @@ Prioridade de métodos quando SSH está indisponível:
 ## 21. Integração com o Communication Bus (Copilot Bridge)
 
 ### 21.1 Visão geral
-O Copilot (dev_local) mantém presença ativa no Communication Bus do homelab via `scripts/copilot_bus_bridge.py`. Isso permite:
+O Copilot (dev_local) mantém presença ativa no Communication Bus do homelab via `/scripts/copilot_bus_bridge.py`. Isso permite:
 - Receber tarefas em overflow quando agentes especializados estão ocupados
 - Heartbeat a cada 30s informando disponibilidade e capabilities
 - Registro de resultados no Distributed Coordinator (precisão rastreada)
@@ -544,19 +645,19 @@ python3 scripts/copilot_bus_bridge.py --homelab-url http://192.168.15.2:8503
 
 ## 22. Referências rápidas
 
-- **Documentação geral**: `docs/confluence/pages/OPERATIONS.md`
-- **Arquitetura**: `docs/ARCHITECTURE.md`, `docs/confluence/pages/ARCHITECTURE.md`
-- **Secrets**: `docs/SECRETS.md`, `docs/VAULT_README.md`
-- **Troubleshooting**: `docs/TROUBLESHOOTING.md`
-- **Quality Gate**: `docs/REVIEW_QUALITY_GATE.md`, `docs/REVIEW_SYSTEM_USAGE.md`
-- **Agent Memory**: `docs/AGENT_MEMORY.md`
-- **Server Config**: `docs/SERVER_CONFIG.md`
-- **Deploy homelab**: `docs/DEPLOY_TO_HOMELAB.md`
-- **Lições aprendidas**: `docs/LESSONS_LEARNED_2026-02-02.md`, `docs/LESSONS_LEARNED_FLYIO_REMOVAL.md`
-- **Operações estendidas**: `.github/copilot-instructions-extended.md`
-- **Setup geral**: `docs/SETUP.md`
-- **Team Structure**: `TEAM_STRUCTURE.md`, `TEAM_BACKLOG.md`
-- **Interceptor**: `INTERCEPTOR_README.md`, `INTERCEPTOR_SUMMARY.md`
-- **Distributed System**: `DISTRIBUTED_SYSTEM.md`
-- **Recovery**: `tools/homelab_recovery/README.md`, `RECOVERY_SUMMARY.md`
-- **ITIL**: `PROJECT_MANAGEMENT_ITIL_BEST_PRACTICES.md`
+- **Documentação geral**: `/docs/confluence/pages/OPERATIONS.md`
+- **Arquitetura**: `/docs/ARCHITECTURE.md`, `/docs/confluence/pages/ARCHITECTURE.md`
+- **Secrets**: `/docs/SECRETS.md`, `/docs/VAULT_README.md`
+- **Troubleshooting**: `/docs/TROUBLESHOOTING.md`
+- **Quality Gate**: `/docs/REVIEW_QUALITY_GATE.md`, `/docs/REVIEW_SYSTEM_USAGE.md`
+- **Agent Memory**: `/docs/AGENT_MEMORY.md`
+- **Server Config**: `/docs/SERVER_CONFIG.md`
+- **Deploy homelab**: `/docs/DEPLOY_TO_HOMELAB.md`
+- **Lições aprendidas**: `/docs/LESSONS_LEARNED_2026-02-02.md`, `/docs/LESSONS_LEARNED_FLYIO_REMOVAL.md`
+- **Operações estendidas**: `/.github/copilot-instructions-extended.md`
+- **Setup geral**: `/docs/SETUP.md`
+- **Team Structure**: `/TEAM_STRUCTURE.md`, `/TEAM_BACKLOG.md`
+- **Interceptor**: `/INTERCEPTOR_README.md`, `/INTERCEPTOR_SUMMARY.md`
+- **Distributed System**: `/DISTRIBUTED_SYSTEM.md`
+- **Recovery**: `/tools/homelab_recovery/README.md`, `/RECOVERY_SUMMARY.md`
+- **ITIL**: `/PROJECT_MANAGEMENT_ITIL_BEST_PRACTICES.md`

@@ -59,7 +59,7 @@ flutter run                 # Rodar no dispositivo/emulador
 
 ## 🔧 Homelab‑first (política recomendada)
 - Objetivo: delegar *builds*, *testes* e tarefas pesadas ao **homelab** (host: `192.168.15.2`) para não sobrecarregar máquinas de desenvolvimento.
-- CI: workflows críticos (Build / Test) **devem** usar runners self-hosted (label `homelab`). A verificação automática `scripts/verify-homelab-preference.sh` falhará se essa regra for violada.
+- CI: workflows críticos (Build / Test) **devem** usar runners self-hosted (label `homelab`). A verificação automática `/scripts/verify-homelab-preference.sh` falhará se essa regra for violada.
 
 Como usar o homelab rapidamente:
 ```bash
@@ -73,7 +73,7 @@ export HOMELAB_HOST=192.168.15.2
 
 Segurança / secrets:
 - Armazene credenciais e chaves SSH no **Secrets Agent** (porta 8088) e referencie via `SECRETS_AGENT_URL` + `SECRETS_AGENT_API_KEY`.
-- Use o helper: `scripts/secrets-agent/register-homelab-secrets.sh` (modelo) para inserir segredos no cofre local.
+- Use o helper: `/scripts/secrets-agent/register-homelab-secrets.sh` (modelo) para inserir segredos no cofre local.
 
 Por que isso ajuda: reduz uso de CPU/RAM no laptop, garante consistência de ambiente de build e habilita runners mais potentes para E2E/Selenium.  
 
@@ -103,8 +103,27 @@ O mapa exibe:
 | Banco      | PostgreSQL + PostGIS                |
 | Auth       | JWT + bcrypt                        |
 | Realtime   | Socket.IO                           |
-| Push       | Firebase Cloud Messaging            |
+| Push       | Firebase Cloud Messaging            || **Dev Tool**| **LLM-Optimizer v2.2** (CLINE proxy)|
 
+## 🤖 LLM-Optimizer — Assistente CLINE via Ollama
+
+Para usar **CLINE** com modelos locais (Ollama qwen3:4b) no projeto:
+
+```bash
+# Configurar CLINE (VS Code extension)
+# Base URL: http://192.168.15.2:8512/v1
+# Model: qwen3:4b
+# Timeout: 1.200.000 ms (20 min para Map-Reduce)
+```
+
+**O que faz:** LLM-Optimizer (@porto 8512) é um proxy OpenAI-compatible que otimiza requisições para o Ollama:
+- Strategy A (< 2K tokens): direto em qwen3:4b
+- Strategy B (2-6K): troca para qwen3:0.6b (mais rápido)
+- Strategy C (> 6K): Map-Reduce paralelo com smart truncation para tool-calling
+
+**Métricas (20 fev):** 5 requisições CLINE, 0 erros, 76K tokens salvos, tool-calling 100% funcional.
+
+📖 [Documentação completa](./docs/LLM_OPTIMIZER.md)
 ## 📋 Requisitos
 
 - Flutter SDK >= 3.0

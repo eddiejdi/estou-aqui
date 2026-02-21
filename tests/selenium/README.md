@@ -11,18 +11,18 @@ Instalação
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r tests/selenium/requirements.txt
+pip install -r /tests/selenium/requirements.txt
 ```
 
 Executando
 
 ```bash
-python tests/selenium/test_create_event.py --url http://localhost:34951/#/events
+python /tests/selenium/test_create_event.py --url http://localhost:34951/#/events
 
 LinkedIn Page overview monitor
 
-- Local run: LINKEDIN_PASSWORD="$LINKEDIN_PASSWORD" pytest tests/selenium/test_linkedin_overview.py::test_linkedin_page_overview_contains_rpa4all
-- CI: workflow `.github/workflows/selenium-linkedin-monitor.yml` (scheduled). Requires repository secret `LINKEDIN_PASSWORD` for the admin account `edenilson.adm@gmail.com`.
+- Local run: LINKEDIN_PASSWORD="$LINKEDIN_PASSWORD" pytest /tests/selenium/test_linkedin_overview.py::test_linkedin_page_overview_contains_rpa4all
+- CI: workflow `/.github/workflows/selenium-linkedin-monitor.yml` (scheduled). Requires repository secret `LINKEDIN_PASSWORD` for the admin account `edenilson.adm@gmail.com`.
 ```
 
 Observações

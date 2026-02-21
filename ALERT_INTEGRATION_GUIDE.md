@@ -69,7 +69,7 @@ Integração completa do pipeline de alertas Prometheus + AlertManager com o app
 
 ### 1. **Backend Services** (Node.js)
 
-#### a) `services/alerting.js` - Core Alert Processing
+#### a) `/backend/src/services/alerting.js` - Core Alert Processing
 - Recebe webhooks do AlertManager
 - Processa e valida alertas
 - Mantém cache de alertas ativos
@@ -81,7 +81,7 @@ Integração completa do pipeline de alertas Prometheus + AlertManager com o app
 alertingService.processAlertManagerWebhook(payload)
 ```
 
-#### b) `routes/alerts.js` - REST API
+#### b) `/backend/src/routes/alerts.js` - REST API
 ```
 POST   /api/alerts/webhook         ← Recebe AlertManager
 GET    /api/alerts/active          ← Alertas ativos agora
@@ -90,7 +90,7 @@ GET    /api/alerts/stats           ← Estatísticas
 DELETE /api/alerts/clear?hours=24  ← Limpeza
 ```
 
-#### c) `services/alert-socket.js` - Socket.io Real-time
+#### c) `/backend/src/services/alert-socket.js` - Socket.io Real-time
 **Namespace:** `/alerts`
 
 **Events (Server → Client):**
@@ -113,7 +113,7 @@ DELETE /api/alerts/clear?hours=24  ← Limpeza
 
 ### 2. **Client Libraries**
 
-#### `clients/alert-client.js` - JavaScript/Web Client
+#### `/backend/clients/alert-client.js` - JavaScript/Web Client
 ```javascript
 import AlertClient from './alert-client.js';
 
@@ -163,9 +163,9 @@ bash scripts/setup-alert-integration.sh
 - Recomendação: adicionar testes automatizados (incluídos abaixo) para evitar regressões.
 
 #### Testes incluídos
-- `tests/test_homelab_agent_registration.py` — teste `pytest -m integration` que valida `advisor_api_registration_status == 1` no agent `/metrics` (usa `HOMELAB_HOST` para apontar o host remoto).  
+- `/tests/test_homelab_agent_registration.py` — teste `pytest -m integration` que valida `advisor_api_registration_status == 1` no agent `/metrics` (usa `HOMELAB_HOST` para apontar o host remoto).  
 - Como executar localmente (homelab access):
-  - HOMELAB_HOST=192.168.15.2 pytest -q -m integration tests/test_homelab_agent_registration.py
+  - HOMELAB_HOST=192.168.15.2 pytest -q -m integration /tests/test_homelab_agent_registration.py
   - No CI esses testes ficam marcados como `integration` (executar explicitamente quando necessário).
 
 
@@ -225,7 +225,7 @@ Observações operacionais:
 - Boas práticas ao saneamento:
   - Priorize alertas `critical` para investigação imediata; `warning` pode ser agrupado e avaliado durante manutenção.
   - Ajuste `duration`/`thresholds` nas regras do Prometheus (em `/etc/prometheus/rules/`) em vez de apenas no dashboard — isso reduz ruído globalmente.
-  - Sempre documente alterações de regras em `ALERT_INTEGRATION_GUIDE.md` e revalide com um teste de integração (ex.: `tests/test_homelab_agent_registration.py`).
+  - Sempre documente alterações de regras em `/ALERT_INTEGRATION_GUIDE.md` e revalide com um teste de integração (ex.: `/tests/test_homelab_agent_registration.py`).
 
 ### Passo 3: Integrar no Frontend
 
@@ -485,7 +485,7 @@ socket.emit('alerts:request-active');
   - O container do agent não está na mesma rede Docker que o Postgres (hostname `eddie-postgres` não resolvido).
   - `DATABASE_URL` configurado com host/porta incorretos ou credenciais inválidas.
 - Ações imediatas:
-  1. Use o sample systemd em `scripts/systemd/homelab_copilot_agent.service.sample` (inclui `--network homelab_monitoring` e `DATABASE_URL` apontando para `eddie-postgres`).
+  1. Use o sample systemd em `/scripts/systemd/homelab_copilot_agent.service.sample` (inclui `--network homelab_monitoring` e `DATABASE_URL` apontando para `eddie-postgres`).
   2. Verifique conectividade DNS/TCP a partir do container: `docker exec <agent-cid> python3 -c "import socket; socket.create_connection(('eddie-postgres',5432),2)"`
   3. Confirme credenciais: `docker exec eddie-postgres env | grep POSTGRES_PASSWORD` e ajuste `DATABASE_URL` conforme necessário.
   4. Reinicie o serviço systemd que inicia o container (`sudo systemctl daemon-reload && sudo systemctl restart homelab_copilot_agent`).
@@ -493,7 +493,7 @@ socket.emit('alerts:request-active');
 - Nota operacional: prefira injetar senha via Secrets Agent (não hardcode).
 
 Systemd runtime note
-- Use o helper `scripts/secrets-agent/run-homelab-copilot.sh` como ExecStart para o serviço `homelab_copilot_agent` (sample em `scripts/systemd/homelab_copilot_agent.service.sample`). Isso faz o lookup no Secrets Agent e injeta `DATABASE_URL` sem deixar senhas em texto claro.
+- Use o helper `/scripts/secrets-agent/run-homelab-copilot.sh` como ExecStart para o serviço `homelab_copilot_agent` (sample em `/scripts/systemd/homelab_copilot_agent.service.sample`). Isso faz o lookup no Secrets Agent e injeta `DATABASE_URL` sem deixar senhas em texto claro.
 
 ### Reporting errors {#reporting-errors}
 - Symptom: `HomelabAdvisorReportErrors` firing.
@@ -560,7 +560,7 @@ curl http://localhost:8503/interceptor/conversations/active | jq
 
 ## 📞 API Reference
 
-Ver [ALERT_API.md](./ALERT_API.md) para documentação completa de endpoints.
+Ver [ALERT_API.md](/ALERT_API.md) para documentação completa de endpoints.
 
 ---
 
