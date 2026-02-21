@@ -94,6 +94,49 @@ Jogos e aplicativos avançados podem contornar o Pi‑hole de várias maneiras:
 
 > O health‑check do homelab agora inclui verificações de bypass (consultas a 8.8.8.8 e presença das regras). Consulte `scripts/homelab-health-check.sh`.
 
+## 8. Inicialização automática no boot
+
+Para garantir que o Pi‑hole volte a funcionar após um reboot do servidor, o homelab utiliza um
+serviço systemd que executa o `docker-compose` do diretório `~/pihole`.
+
+```ini
+[Unit]
+Description=Pi-hole Container
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/home/homelab/pihole
+ExecStart=/usr/bin/docker-compose up -d
+ExecStop=/usr/bin/docker-compose down
+
+[Install]
+WantedBy=multi-user.target
+```
+
+O serviço é criado com:
+
+```sh
+sudo tee /etc/systemd/system/pihole.service <<'EOF'  # ver o conteúdo acima
+# ...unit file...
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable pihole.service
+sudo systemctl start pihole.service
+```
+
+Uma vez habilitado, o container sobe automaticamente em todos os boot e pode ser controlado com
+`systemctl start|stop|status pihole.service`. Sempre que fizer alterações na configuração do
+compose (por exemplo alterar senha ou `upstreamDNS`), reinicie o serviço.
+
+```sh
+sudo systemctl restart pihole.service
+```
+
+Essa unidade também é verificada pelo health-check para garantir que o Pi-hole esteja ativo.
+
 ## 6. Uso responsável
 
 * Para domínios legítimos que forem bloqueados por engano, adicione à whitelist via script ou CLI interno do container.
