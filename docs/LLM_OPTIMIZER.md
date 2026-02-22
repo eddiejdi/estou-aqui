@@ -350,6 +350,23 @@ sudo systemctl restart llm-optimizer
 ## Próximas Melhorias
 
 - [ ] GPU acceleration (CUDA/ROCm) para 3-5x speedup
+
+### Configuração de Núcleos
+
+O deploy script agora aceita a variável `THREADS` (padrão 2) que é usada
+para exportar `OMP_NUM_THREADS` no serviço systemd e também atualizar o
+`~/.cline/data/globalState.json` remoto com o campo
+`ollamaApiOptionsThreads`. Isso permite ao LLM‑Optimizer / Ollama usar mais
+de um núcleo CPU sem intervenção manual.
+
+Exemplo de uso:
+
+```bash
+THREADS=4 ./scripts/deploy_llm_optimizer.sh    # configura para 4 threads
+```
+
+A variável `THREADS` também pode ser definida no ambiente do servidor
+antes do deploy si quiser aplicar a configuração de forma permanente.
 - [ ] Cache de resposts (Redis/memcached)
 - [ ] Circuit breaker para Ollama offline
 - [ ] Dynamic worker scaling baseado em CPU

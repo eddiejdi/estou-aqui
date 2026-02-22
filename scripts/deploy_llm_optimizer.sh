@@ -21,6 +21,10 @@ REMOTE_DIR="${REMOTE_DIR:-/home/homelab/llm-optimizer}"
 LOCAL_SOURCE="scripts/llm_optimizer_v2.3.py"
 REMOTE_TARGET="llm_optimizer.py"
 
+# número de threads que Ollama deve utilizar (p/ CPU-only inference)
+# por padrão usamos 2; você pode sobrescrever via variável de ambiente
+THREADS="${THREADS:-2}"
+
 DRY_RUN="${DRY_RUN:-0}"
 SKIP_TESTS="${SKIP_TESTS:-0}"
 
@@ -116,6 +120,22 @@ ssh_exec "cd $REMOTE_DIR && \
     else \
         echo 'Nenhum arquivo existente para backup'; \
     fi"
+
+# garantir que o serviço systemd exporte a variável de threads
+ssh_exec "sudo bash -c '\
+    if grep -q OMP_NUM_THREADS /etc/systemd/system/${SERVICE_NAME}.service; then \
+        echo OMP_NUM_THREADS já configurado; \
+    else \
+        echo "Environment=OMP_NUM_THREADS=${THREADS}" | sudo tee -a /etc/systemd/system/${SERVICE_NAME}.service; \
+        sudo systemctl daemon-reload; \
+    fi'"
+
+# opcional: atualizar globalState do CLINE remoto (se existir)
+ssh_exec "bash -c 'if [ -f ~/.cline/data/globalState.json ]; then \
+    jq --argjson t ${THREADS} '. + {ollamaApiOptionsThreads: $t}' ~/.cline/data/globalState.json \
+      > /tmp/g ; mv /tmp/g ~/.cline/data/globalState.json; \
+    echo CLINE globalState atualizado com threads=${THREADS}; \
+fi' || true"
 
 log_info "✓ Backup concluído"
 
