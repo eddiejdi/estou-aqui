@@ -14,7 +14,11 @@ const checkinRoutes = require('./routes/checkins');
 const chatRoutes = require('./routes/chat');
 const estimateRoutes = require('./routes/estimates');
 const notificationRoutes = require('./routes/notifications');
+const metricsRoutes = require('./routes/metrics');
 const setupSocket = require('./services/socket');
+const tokenMetrics = require('./services/token_metrics');
+const busIntegration = require('./services/bus_integration');
+const { trackTokenMiddleware } = require('./middleware/token_tracking');
 
 const app = express();
 const server = http.createServer(app);
@@ -28,6 +32,7 @@ app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(trackTokenMiddleware);
 
 // Disponibilizar io para as rotas
 app.set('io', io);
@@ -39,6 +44,7 @@ app.use('/api/checkins', checkinRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/estimates', estimateRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/metrics', metricsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -71,8 +77,21 @@ async function start() {
     await sequelize.sync({ alter: process.env.NODE_ENV === 'development' });
     console.log('✅ Modelos sincronizados');
 
+    // Inicializar Bus Integration
+    const busConnected = await busIntegration.connect();
+    if (busConnected) {
+      console.log('✅ Conectado ao Communication Bus');
+      // Configurar publicador de tokens no bus
+      tokenMetrics.setBusPublisher((msg) => busIntegration.publish(msg));
+      // Anunciar presença no bus
+      await busIntegration.announcePresence();
+    } else {
+      console.log('⚠️  Communication Bus indisponível (continuando offline)');
+    }
+
     server.listen(PORT, () => {
       console.log(`🚀 Estou Aqui API rodando na porta ${PORT}`);
+      console.log(`📊 Métricas disponíveis em http://localhost:${PORT}/api/metrics`);
     });
   } catch (error) {
     console.error('❌ Falha ao iniciar servidor:', error);

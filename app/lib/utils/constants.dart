@@ -1,8 +1,8 @@
 /// Constantes da aplicação
 class AppConstants {
-  // API
-  static const String apiBaseUrl = 'http://localhost:3000/api';
-  static const String wsUrl = 'http://localhost:3000';
+  // API - Homelab Server
+  static const String apiBaseUrl = 'http://192.168.15.2:3001/api';
+  static const String wsUrl = 'http://192.168.15.2:3001';
 
   // Storage keys
   static const String tokenKey = 'auth_token';
