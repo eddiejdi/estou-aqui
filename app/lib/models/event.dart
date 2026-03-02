@@ -68,6 +68,10 @@ class SocialEvent extends Equatable {
   final String? address;
   final String? city;
   final String? state;
+  // Ponto de chegada (passeatas/marchas)
+  final double? endLatitude;
+  final double? endLongitude;
+  final String? endAddress;
   final DateTime startDate;
   final DateTime? endDate;
   final EventStatus status;
@@ -77,6 +81,7 @@ class SocialEvent extends Equatable {
   final User? organizer;
   final List<String> tags;
   final bool isVerified;
+  final String? coalitionId;
   final DateTime createdAt;
 
   const SocialEvent({
@@ -90,6 +95,9 @@ class SocialEvent extends Equatable {
     this.address,
     this.city,
     this.state,
+    this.endLatitude,
+    this.endLongitude,
+    this.endAddress,
     required this.startDate,
     this.endDate,
     this.status = EventStatus.scheduled,
@@ -99,22 +107,26 @@ class SocialEvent extends Equatable {
     this.organizer,
     this.tags = const [],
     this.isVerified = false,
+    this.coalitionId,
     required this.createdAt,
   });
 
   factory SocialEvent.fromJson(Map<String, dynamic> json) {
     return SocialEvent(
       id: json['id'] as String,
-      title: json['title'] as String,
-      description: json['description'] as String,
+      title: json['title'] as String? ?? 'Sem título',
+      description: json['description'] as String? ?? '',
       category: EventCategory.fromString(json['category'] ?? 'outro'),
       imageUrl: json['imageUrl'] as String?,
-      latitude: (json['latitude'] as num).toDouble(),
-      longitude: (json['longitude'] as num).toDouble(),
+      latitude: (json['latitude'] as num?)?.toDouble() ?? 0,
+      longitude: (json['longitude'] as num?)?.toDouble() ?? 0,
       address: json['address'] as String?,
       city: json['city'] as String?,
       state: json['state'] as String?,
-      startDate: DateTime.parse(json['startDate'] as String),
+      endLatitude: (json['endLatitude'] as num?)?.toDouble(),
+      endLongitude: (json['endLongitude'] as num?)?.toDouble(),
+      endAddress: json['endAddress'] as String?,
+      startDate: json['startDate'] != null ? DateTime.parse(json['startDate'] as String) : DateTime.now(),
       endDate: json['endDate'] != null ? DateTime.parse(json['endDate'] as String) : null,
       status: EventStatus.values.firstWhere(
         (s) => s.name == json['status'],
@@ -126,6 +138,7 @@ class SocialEvent extends Equatable {
       organizer: json['organizer'] != null ? User.fromJson(json['organizer']) : null,
       tags: (json['tags'] as List<dynamic>?)?.cast<String>() ?? [],
       isVerified: json['isVerified'] as bool? ?? false,
+      coalitionId: json['coalitionId'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }
@@ -140,14 +153,29 @@ class SocialEvent extends Equatable {
     'address': address,
     'city': city,
     'state': state,
+    'endLatitude': endLatitude,
+    'endLongitude': endLongitude,
+    'endAddress': endAddress,
     'startDate': startDate.toIso8601String(),
     'endDate': endDate?.toIso8601String(),
     'tags': tags,
     'areaSquareMeters': areaSquareMeters,
+    'coalitionId': coalitionId,
   };
 
   bool get isActive => status == EventStatus.active;
   bool get isUpcoming => status == EventStatus.scheduled && startDate.isAfter(DateTime.now());
+
+  /// Evento é passeata/marcha (tem ponto de chegada)
+  bool get isMarcha => endLatitude != null && endLongitude != null;
+
+  String get endLocationDisplay {
+    if (endAddress != null) return endAddress!;
+    if (endLatitude != null && endLongitude != null) {
+      return '${endLatitude!.toStringAsFixed(4)}, ${endLongitude!.toStringAsFixed(4)}';
+    }
+    return 'Não definido';
+  }
 
   String get locationDisplay {
     if (address != null) return address!;

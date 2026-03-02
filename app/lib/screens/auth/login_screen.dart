@@ -131,6 +131,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
 
+                // Botão Login com Google
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.login, color: Colors.red),
+                  label: const Text('Entrar com Google'),
+                  onPressed: _isLoading
+                      ? null
+                      : () async {
+                          setState(() => _isLoading = true);
+                          try {
+                            await ref.read(authStateProvider.notifier).loginWithGoogle();
+                            final authState = ref.read(authStateProvider);
+                            authState.when(
+                              data: (user) {
+                                if (user != null) context.go('/map');
+                              },
+                              loading: () {},
+                              error: (error, _) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Erro: $error'), backgroundColor: Colors.red),
+                                );
+                              },
+                            );
+                          } finally {
+                            if (mounted) setState(() => _isLoading = false);
+                          }
+                        },
+                ),
+
                 // Link para registro
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

@@ -54,6 +54,22 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING(50),
       allowNull: true,
     },
+    // Localização de chegada (para passeatas/marchas)
+    endLatitude: {
+      type: DataTypes.DOUBLE,
+      allowNull: true,
+      comment: 'Latitude do ponto de chegada (passeatas)',
+    },
+    endLongitude: {
+      type: DataTypes.DOUBLE,
+      allowNull: true,
+      comment: 'Longitude do ponto de chegada (passeatas)',
+    },
+    endAddress: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+      comment: 'Endereço do ponto de chegada (passeatas)',
+    },
     // Datas
     startDate: {
       type: DataTypes.DATE,
@@ -98,6 +114,12 @@ module.exports = (sequelize) => {
     isVerified: {
       type: DataTypes.BOOLEAN,
       defaultValue: false,
+    },
+    // Coalizão — agrupa protestos da mesma causa
+    coalitionId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      comment: 'ID da coalizão/causa que agrupa este evento',
     },
   }, {
     tableName: 'events',

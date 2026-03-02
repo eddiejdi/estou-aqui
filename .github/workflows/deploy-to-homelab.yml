@@ -1,0 +1,58 @@
+name: Deploy to Homelab
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to deploy (branch or commit)'
+        required: true
+        default: 'main'
+
+jobs:
+  deploy:
+    name: Deploy "${{ github.event.inputs.ref }}" to homelab
+    runs-on: [self-hosted, homelab]
+    if: github.actor == 'eddiejdi' || contains(github.event.workflow, '')
+
+    steps:
+      - name: Checkout code at requested ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
+
+      - name: Ensure helper and sample exist
+        run: |
+          ls -l scripts/systemd/homelab_copilot_agent.service.sample
+          ls -l scripts/secrets-agent/run-homelab-copilot.sh
+
+      - name: Install prerequisites (jq)
+        run: |
+          if ! command -v jq >/dev/null 2>&1; then sudo apt-get update && sudo apt-get install -y jq; fi
+
+      - name: Deploy systemd drop-in (override)
+        run: |
+          sudo mkdir -p /etc/systemd/system/homelab_copilot_agent.service.d
+          sudo cp scripts/systemd/homelab_copilot_agent.service.sample /etc/systemd/system/homelab_copilot_agent.service.d/override.conf
+          sudo chmod 644 /etc/systemd/system/homelab_copilot_agent.service.d/override.conf
+
+      - name: Place helper script in homelab path
+        run: |
+          sudo mkdir -p /home/homelab/eddie-auto-dev/estou-aqui/scripts/secrets-agent
+          sudo cp scripts/secrets-agent/run-homelab-copilot.sh /home/homelab/eddie-auto-dev/estou-aqui/scripts/secrets-agent/run-homelab-copilot.sh
+          sudo chown homelab:homelab /home/homelab/eddie-auto-dev/estou-aqui/scripts/secrets-agent/run-homelab-copilot.sh
+          sudo chmod +x /home/homelab/eddie-auto-dev/estou-aqui/scripts/secrets-agent/run-homelab-copilot.sh
+
+      - name: systemd daemon-reload & restart agent
+        run: |
+          sudo systemctl daemon-reload
+          sudo systemctl restart homelab_copilot_agent
+          sleep 3
+          sudo systemctl status homelab_copilot_agent --no-pager -n 50 || true
+
+      - name: Verify advisor health
+        run: |
+          curl -sS http://127.0.0.1:8085/health | jq '{ipc_available: .ipc_available, ipc_diag: .ipc_diag}'
+          curl -sS http://127.0.0.1:8085/metrics | grep advisor_ipc_ready || true
+
+      - name: Notify (logs)
+        run: echo "Deployed ${{ github.event.inputs.ref }} to homelab at $(date)"

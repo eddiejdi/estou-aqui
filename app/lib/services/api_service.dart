@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../utils/web_utils.dart' as web;
 import '../utils/constants.dart';
 
 class ApiService {
@@ -19,16 +21,25 @@ class ApiService {
 
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
-        final token = await _storage.read(key: AppConstants.tokenKey);
+        final token = await _readToken();
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
+          if (kIsWeb) {
+            web.webConsoleLog('🔐 Token adicionado ao header: Bearer ${token.substring(0, 20)}...');
+          }
+        } else {
+          if (kIsWeb) {
+            web.webConsoleWarn('⚠️ Nenhum token disponível para a requisição');
+          }
         }
         handler.next(options);
       },
       onError: (error, handler) {
         if (error.response?.statusCode == 401) {
-          // Token expirado — redirecionar para login
-          _storage.delete(key: AppConstants.tokenKey);
+          if (kIsWeb) {
+            web.webConsoleError('🚫 Erro 401 - Token expirado');
+          }
+          _deleteToken();
         }
         handler.next(error);
       },
@@ -37,13 +48,66 @@ class ApiService {
 
   Dio get dio => _dio;
 
+  // ─── Token Storage (com suporte para Web) ────────────
+  Future<String?> _readToken() async {
+    try {
+      final token = await _storage.read(key: AppConstants.tokenKey);
+      if (token != null) {
+        if (kIsWeb) web.webConsoleLog('✅ Token lido de FlutterSecureStorage: ${token.substring(0, 20)}...');
+        return token;
+      }
+      
+      // No web, tentar fallback para localStorage
+      if (kIsWeb) {
+        final localToken = web.webLocalStorageRead(AppConstants.tokenKey);
+        if (localToken != null) {
+          web.webConsoleLog('✅ Token lido de localStorage: ${localToken.substring(0, 20)}...');
+          return localToken;
+        } else {
+          web.webConsoleLog('❌ Nenhum token encontrado (nem em storage, nem em localStorage)');
+        }
+      }
+    } catch (e) {
+      if (kIsWeb) {
+        web.webConsoleError('❌ Erro ao ler token: $e');
+      }
+    }
+    return null;
+  }
+
+  Future<void> _writeToken(String token) async {
+    try {
+      await _storage.write(key: AppConstants.tokenKey, value: token);
+    } catch (_) {}
+    
+    // No web, também salvar em localStorage como fallback
+    if (kIsWeb) {
+      try {
+        web.webLocalStorageWrite(AppConstants.tokenKey, token);
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _deleteToken() async {
+    try {
+      await _storage.delete(key: AppConstants.tokenKey);
+    } catch (_) {}
+    
+    // No web, também remover de localStorage
+    if (kIsWeb) {
+      try {
+        web.webLocalStorageRemove(AppConstants.tokenKey);
+      } catch (_) {}
+    }
+  }
+
   // ─── Auth ─────────────────────────────────────────────
   Future<Map<String, dynamic>> register(String name, String email, String password) async {
     final response = await _dio.post('/auth/register', data: {
       'name': name, 'email': email, 'password': password,
     });
     final token = response.data['token'];
-    await _storage.write(key: AppConstants.tokenKey, value: token);
+    await _writeToken(token);
     return response.data;
   }
 
@@ -52,7 +116,35 @@ class ApiService {
       'email': email, 'password': password,
     });
     final token = response.data['token'];
-    await _storage.write(key: AppConstants.tokenKey, value: token);
+    await _writeToken(token);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> loginWithGoogle(String idToken) async {
+    final response = await _dio.post('/auth/google', data: {
+      'idToken': idToken,
+    });
+    final token = response.data['token'];
+    await _writeToken(token);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> loginWithGoogleAccessToken({
+    required String accessToken,
+    required String email,
+    String? name,
+    String? avatar,
+    String? googleId,
+  }) async {
+    final response = await _dio.post('/auth/google-access-token', data: {
+      'accessToken': accessToken,
+      'email': email,
+      'name': name,
+      'avatar': avatar,
+      'googleId': googleId,
+    });
+    final token = response.data['token'];
+    await _writeToken(token);
     return response.data;
   }
 
@@ -66,11 +158,11 @@ class ApiService {
   }
 
   Future<void> logout() async {
-    await _storage.delete(key: AppConstants.tokenKey);
+    await _deleteToken();
   }
 
   Future<bool> isAuthenticated() async {
-    final token = await _storage.read(key: AppConstants.tokenKey);
+    final token = await _readToken();
     return token != null;
   }
 
@@ -88,8 +180,23 @@ class ApiService {
     if (category != null) params['category'] = category;
     if (city != null) params['city'] = city;
 
-    final response = await _dio.get('/events', queryParameters: params);
-    return response.data;
+    if (kIsWeb) {
+      web.webConsoleLog('📡 Chamando GET /events com parâmetros: $params');
+    }
+    
+    try {
+      final response = await _dio.get('/events', queryParameters: params);
+      final events = response.data['events'] as List?;
+      if (kIsWeb) {
+        web.webConsoleLog('✅ Getting events returned ${events?.length ?? 0} eventos');
+      }
+      return response.data;
+    } catch (e) {
+      if (kIsWeb) {
+        web.webConsoleError('❌ Erro ao buscar eventos: $e');
+      }
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>> getEvent(String id) async {
@@ -172,5 +279,54 @@ class ApiService {
 
   Future<void> markAllNotificationsRead() async {
     await _dio.put('/notifications/read-all');
+  }
+
+  // ─── Telegram Groups ─────────────────────────────────
+  Future<Map<String, dynamic>> joinTelegramGroup(String eventId) async {
+    final response = await _dio.post('/telegram-groups/$eventId/join');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getTelegramGroups(String eventId) async {
+    final response = await _dio.get('/telegram-groups/$eventId');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> linkTelegramGroup(String eventId, {String? chatId, required String inviteLink}) async {
+    final response = await _dio.post('/telegram-groups/$eventId/link', data: {
+      if (chatId != null) 'chatId': chatId,
+      'inviteLink': inviteLink,
+    });
+    return response.data;
+  }
+
+  // ─── Coalizões ────────────────────────────────────────
+  Future<Map<String, dynamic>> getCoalitions({String status = 'active', int page = 1}) async {
+    final response = await _dio.get('/coalitions', queryParameters: {
+      'status': status, 'page': page,
+    });
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getCoalition(String id) async {
+    final response = await _dio.get('/coalitions/$id');
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> createCoalition(Map<String, dynamic> data) async {
+    final response = await _dio.post('/coalitions', data: data);
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> joinCoalition(String coalitionId, String eventId) async {
+    final response = await _dio.post('/coalitions/$coalitionId/join', data: {
+      'eventId': eventId,
+    });
+    return response.data;
+  }
+
+  Future<Map<String, dynamic>> getCoalitionStats(String coalitionId) async {
+    final response = await _dio.get('/coalitions/$coalitionId/stats');
+    return response.data;
   }
 }

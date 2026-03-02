@@ -1,13 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import '../utils/web_utils.dart' as web;
 import '../models/user.dart';
 import '../models/event.dart';
 import '../services/api_service.dart';
 import '../services/location_service.dart';
+import '../services/geocode_service.dart';
 import '../services/socket_service.dart';
 
 // ─── Services ───────────────────────────────────────────
 final apiServiceProvider = Provider<ApiService>((ref) => ApiService());
 final locationServiceProvider = Provider<LocationService>((ref) => LocationService());
+final geocodeServiceProvider = Provider<GeocodeService>((ref) => GeocodeService());
 final socketServiceProvider = Provider<SocketService>((ref) => SocketService());
 
 // ─── Auth State ─────────────────────────────────────────
@@ -55,6 +60,60 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
     await _api.logout();
     state = const AsyncValue.data(null);
   }
+
+  Future<void> loginWithGoogle() async {
+    state = const AsyncValue.loading();
+    try {
+      // No web, o clientId vem da meta tag google-signin-client_id no index.html
+      // No mobile, passamos explicitamente
+      // Web client (client_type 3) do google-services.json
+      const webClientId = '666885877649-dcdb7lcp35a1v576r6ip7p050c074hs7.apps.googleusercontent.com';
+      
+      final google = GoogleSignIn(
+        scopes: ['email', 'profile'],
+        serverClientId: webClientId,
+      );
+      
+      final account = await google.signIn();
+      if (account == null) {
+        // Usuário cancelou
+        state = const AsyncValue.data(null);
+        return;
+      }
+
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      final accessToken = auth.accessToken;
+      
+      if (idToken != null && idToken.isNotEmpty) {
+        // Caminho ideal: enviar idToken ao backend
+        final data = await _api.loginWithGoogle(idToken);
+        state = AsyncValue.data(User.fromJson(data['user']));
+      } else if (accessToken != null && accessToken.isNotEmpty) {
+        // Fallback web: usar accessToken para autenticar no backend
+        if (kIsWeb) {
+          web.webConsoleLog('⚠️ idToken null, usando accessToken como fallback');
+        }
+        final data = await _api.loginWithGoogleAccessToken(
+          accessToken: accessToken,
+          email: account.email,
+          name: account.displayName,
+          avatar: account.photoUrl,
+          googleId: account.id,
+        );
+        state = AsyncValue.data(User.fromJson(data['user']));
+      } else {
+        // Nenhum token disponível
+        state = AsyncValue.error(
+          Exception('Não foi possível obter o token do Google'),
+          StackTrace.current,
+        );
+        return;
+      }
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
 }
 
 // ─── Events ─────────────────────────────────────────────
@@ -69,13 +128,27 @@ class EventsNotifier extends StateNotifier<AsyncValue<List<SocialEvent>>> {
 
   Future<void> loadEvents({double? lat, double? lng, String? status, String? category}) async {
     state = const AsyncValue.loading();
+    if (kIsWeb) web.webConsoleLog('🔄 EventsNotifier.loadEvents() chamado - lat: $lat, lng: $lng, category: $category');
     try {
       final data = await _api.getEvents(lat: lat, lng: lng, status: status, category: category);
-      final events = (data['events'] as List)
+      var events = (data['events'] as List)
           .map((e) => SocialEvent.fromJson(e as Map<String, dynamic>))
           .toList();
+      
+      // Se não encontrou eventos na região, buscar todos sem filtro de localização
+      if (events.isEmpty && (lat != null || lng != null)) {
+        if (kIsWeb) web.webConsoleLog('⚠️ Nenhum evento na região, buscando todos os eventos...');
+        final allData = await _api.getEvents(status: status, category: category);
+        events = (allData['events'] as List)
+            .map((e) => SocialEvent.fromJson(e as Map<String, dynamic>))
+            .toList();
+        if (kIsWeb) web.webConsoleLog('📍 Carregados ${events.length} eventos globais');
+      }
+      
+      if (kIsWeb) web.webConsoleLog('✅ EventsNotifier carregou ${events.length} eventos');
       state = AsyncValue.data(events);
     } catch (e, st) {
+      if (kIsWeb) web.webConsoleError('❌ Erro ao carregar eventos: $e');
       state = AsyncValue.error(e, st);
     }
   }

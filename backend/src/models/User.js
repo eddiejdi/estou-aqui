@@ -19,7 +19,16 @@ module.exports = (sequelize) => {
     },
     password: {
       type: DataTypes.STRING(255),
-      allowNull: false,
+      allowNull: true,
+    },
+    googleId: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      unique: true,
+    },
+    authProvider: {
+      type: DataTypes.ENUM('local', 'google'),
+      defaultValue: 'local',
     },
     avatar: {
       type: DataTypes.STRING(500),

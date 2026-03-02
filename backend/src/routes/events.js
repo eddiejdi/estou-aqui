@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, query, validationResult } = require('express-validator');
 const { Op } = require('sequelize');
-const { Event, User, Checkin } = require('../models');
+const { Event, User, Checkin, Coalition } = require('../models');
 const { auth, optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -57,6 +57,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
       include: [
         { model: User, as: 'organizer', attributes: ['id', 'name', 'avatar'] },
         { model: Checkin, as: 'checkins', where: { isActive: true }, required: false },
+        { model: Coalition, as: 'coalition', attributes: ['id', 'name', 'hashtag', 'totalEvents', 'totalAttendees', 'totalCities'], required: false },
       ],
     });
 

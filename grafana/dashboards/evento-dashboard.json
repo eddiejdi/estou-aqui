@@ -1,0 +1,268 @@
+{
+  "dashboard": {
+    "uid": "estou-aqui-evento-padrao",
+    "title": "Estou Aqui - Dashboard de Evento",
+    "tags": ["estou-aqui", "evento", "crowd"],
+    "timezone": "browser",
+    "refresh": "10s",
+    "templating": {
+      "list": [
+        {
+          "name": "event_id",
+          "type": "textbox",
+          "label": "Event ID",
+          "current": { "text": "", "value": "" }
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "type": "stat",
+        "title": "Participantes Confirmados",
+        "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 100 },
+                { "color": "red", "value": 500 }
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "targets": [
+          {
+            "rawSql": "SELECT confirmed_attendees FROM events WHERE id = '${event_id}' LIMIT 1",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 2,
+        "type": "stat",
+        "title": "Estimativa de Público",
+        "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "steps": [
+                { "color": "blue", "value": null },
+                { "color": "green", "value": 100 },
+                { "color": "orange", "value": 1000 }
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "targets": [
+          {
+            "rawSql": "SELECT estimated_attendees FROM events WHERE id = '${event_id}' LIMIT 1",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 3,
+        "type": "stat",
+        "title": "Check-ins Ativos",
+        "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 50 },
+                { "color": "red", "value": 200 }
+              ]
+            },
+            "unit": "short"
+          }
+        },
+        "targets": [
+          {
+            "rawSql": "SELECT COUNT(*) as active_checkins FROM checkins WHERE event_id = '${event_id}' AND is_active = true",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 4,
+        "type": "stat",
+        "title": "Densidade (p/m²)",
+        "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "decimals": 2,
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 1 },
+                { "color": "red", "value": 3 }
+              ]
+            }
+          }
+        },
+        "targets": [
+          {
+            "rawSql": "SELECT CASE WHEN area_square_meters > 0 THEN confirmed_attendees::float / area_square_meters ELSE 0 END as density FROM events WHERE id = '${event_id}' LIMIT 1",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 5,
+        "type": "timeseries",
+        "title": "Check-ins ao Longo do Tempo",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": { "fillOpacity": 20, "lineWidth": 2, "showPoints": "auto" }
+          }
+        },
+        "targets": [
+          {
+            "rawSql": "SELECT date_trunc('minute', created_at) as time, COUNT(*) as checkins FROM checkins WHERE event_id = '${event_id}' GROUP BY 1 ORDER BY 1",
+            "refId": "A",
+            "format": "time_series"
+          }
+        ],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 6,
+        "type": "timeseries",
+        "title": "Estimativas de Público",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": { "fillOpacity": 10, "lineWidth": 2 }
+          }
+        },
+        "targets": [
+          {
+            "rawSql": "SELECT created_at as time, estimated_count, confidence FROM crowd_estimates WHERE event_id = '${event_id}' ORDER BY created_at",
+            "refId": "A",
+            "format": "time_series"
+          }
+        ],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 7,
+        "type": "table",
+        "title": "Últimos Check-ins",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+        "targets": [
+          {
+            "rawSql": "SELECT u.name, c.created_at as \"Check-in\", CASE WHEN c.is_active THEN 'Ativo' ELSE 'Checkout' END as status FROM checkins c JOIN users u ON u.id = c.user_id WHERE c.event_id = '${event_id}' ORDER BY c.created_at DESC LIMIT 20",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 8,
+        "type": "piechart",
+        "title": "Distribuição por Método de Estimativa",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+        "targets": [
+          {
+            "rawSql": "SELECT method, COUNT(*) as count FROM crowd_estimates WHERE event_id = '${event_id}' GROUP BY method",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 9,
+        "type": "stat",
+        "title": "Mensagens no Chat",
+        "gridPos": { "h": 4, "w": 8, "x": 0, "y": 20 },
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "steps": [{ "color": "blue", "value": null }]
+            }
+          }
+        },
+        "targets": [
+          {
+            "rawSql": "SELECT COUNT(*) as messages FROM chat_messages WHERE event_id = '${event_id}'",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 10,
+        "type": "stat",
+        "title": "Grupos Telegram",
+        "gridPos": { "h": 4, "w": 8, "x": 8, "y": 20 },
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "steps": [{ "color": "purple", "value": null }]
+            }
+          }
+        },
+        "targets": [
+          {
+            "rawSql": "SELECT COUNT(*) as groups FROM telegram_groups WHERE event_id = '${event_id}' AND is_active = true",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      },
+      {
+        "id": 11,
+        "type": "stat",
+        "title": "Duração (horas)",
+        "gridPos": { "h": 4, "w": 8, "x": 16, "y": 20 },
+        "fieldConfig": {
+          "defaults": {
+            "decimals": 1,
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "steps": [{ "color": "green", "value": null }]
+            }
+          }
+        },
+        "targets": [
+          {
+            "rawSql": "SELECT EXTRACT(EPOCH FROM (COALESCE(end_date, NOW()) - start_date)) / 3600.0 as hours FROM events WHERE id = '${event_id}' LIMIT 1",
+            "refId": "A",
+            "format": "table"
+          }
+        ],
+        "datasource": { "type": "postgres", "uid": "estou-aqui-db" }
+      }
+    ],
+    "schemaVersion": 39,
+    "version": 1
+  },
+  "folderUid": "estou-aqui-eventos",
+  "overwrite": true
+}

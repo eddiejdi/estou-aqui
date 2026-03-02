@@ -1,0 +1,52 @@
+*** Begin Patch
+*** Update File: lib/flutter_secure_storage_web.dart
+@@
+-  Future<Map<String, String>> readAll({WebOptions? webOptions}) async {
+-    final map = <String, String>{};
+-    for (int j = 0; j < html.window.localStorage.length; j++) {
+-      final entry = html.window.localStorage.entries.elementAt(j);
+-      if (!entry.key.startsWith(_prefix)) continue;
+-      final value = await _decryptValue(entry.value, options);
+-      if (value == null) continue;
+-      map[entry.key.replaceFirst(_prefix, '')] = value;
+-    }
+-    return map;
+-  }
++  Future<Map<String, String>> readAll({WebOptions? webOptions}) async {
++    final map = <String, String>{};
++    try {
++      // Defensive iteration: do NOT use `entries` or `keys` (these call
++      // Storage.forEach internally and will throw if a key exists but the
++      // corresponding value is null). Use the DOM Storage.key(index)
++      // via JS interop and explicit null checks.
++      final storage = html.window.localStorage;
++      for (var i = 0; i < storage.length; ++i) {
++        // call JS Storage.key(i) directly (dart:html doesn't expose key)
++        final key = js_util.callMethod(storage, 'key', [i]) as String?;
++        if (key == null || !key.startsWith(_prefix)) continue;
++
++        final raw = storage[key];
++        if (raw == null) {
++          // corrupted/partial entry — remove and continue
++          try {
++            storage.remove(key);
++          } catch (_) {}
++          continue;
++        }
++
++        final value = await _decryptValue(raw, options);
++        if (value == null) continue;
++        map[key.replaceFirst(_prefix, '')] = value;
++      }
++    } catch (err, st) {
++      // Best-effort: don't let storage iteration break the whole app.
++      // Log (if a logger is available) and return what we could read.
++      // Avoid rethrowing so consumers get a graceful empty/partial map.
++      // (Add a test to ensure this does not throw on corrupted storage.)
++      // ignore: avoid_print
++      print('flutter_secure_storage_web.readAll - storage iteration failed: $err');
++      // optionally: report to analytics/debugging tools
++    }
++    return map;
++  }
+*** End Patch

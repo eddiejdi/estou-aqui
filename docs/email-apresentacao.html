@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estou Aqui — Apresentação do Projeto</title>
+  <style>
+    /* Reset */
+    body, table, td, p, a, li { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    body { margin: 0; padding: 0; width: 100% !important; }
+    img { border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }
+
+    /* Main */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f6f9;
+      color: #2d3436;
+    }
+    .email-wrapper {
+      max-width: 640px;
+      margin: 0 auto;
+      background-color: #ffffff;
+    }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(135deg, #0984e3 0%, #6c5ce7 50%, #a29bfe 100%);
+      padding: 48px 40px;
+      text-align: center;
+      border-radius: 0 0 24px 24px;
+    }
+    .hero-emoji {
+      font-size: 56px;
+      margin-bottom: 8px;
+    }
+    .hero h1 {
+      color: #ffffff;
+      font-size: 32px;
+      font-weight: 800;
+      margin: 0 0 8px;
+      letter-spacing: -0.5px;
+    }
+    .hero .tagline {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 16px;
+      font-weight: 400;
+      margin: 0;
+      line-height: 1.5;
+    }
+    .hero .badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 14px;
+      border-radius: 20px;
+      margin-top: 16px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* Content */
+    .content {
+      padding: 40px 40px 24px;
+    }
+    .greeting {
+      font-size: 16px;
+      line-height: 1.7;
+      color: #2d3436;
+      margin: 0 0 24px;
+    }
+    .highlight-box {
+      background: #f0f3ff;
+      border-left: 4px solid #6c5ce7;
+      padding: 20px 24px;
+      border-radius: 0 12px 12px 0;
+      margin: 24px 0;
+    }
+    .highlight-box p {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.6;
+      color: #2d3436;
+    }
+
+    /* Features */
+    .features-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #2d3436;
+      margin: 32px 0 20px;
+      text-align: center;
+    }
+    .features-grid {
+      width: 100%;
+      border-spacing: 12px;
+    }
+    .feature-card {
+      background: #ffffff;
+      border: 1px solid #e8ecf1;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      vertical-align: top;
+      width: 33.33%;
+      transition: box-shadow 0.2s;
+    }
+    .feature-card:hover {
+      box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    }
+    .feature-icon {
+      font-size: 32px;
+      margin-bottom: 8px;
+    }
+    .feature-card h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #2d3436;
+      margin: 4px 0;
+    }
+    .feature-card p {
+      font-size: 12px;
+      color: #636e72;
+      line-height: 1.4;
+      margin: 4px 0 0;
+    }
+
+    /* Stats */
+    .stats-bar {
+      background: linear-gradient(135deg, #0984e3, #6c5ce7);
+      border-radius: 12px;
+      padding: 24px 16px;
+      margin: 32px 0;
+      text-align: center;
+    }
+    .stats-bar table {
+      width: 100%;
+      border-spacing: 0;
+    }
+    .stat-item {
+      text-align: center;
+      padding: 0 8px;
+      width: 33.33%;
+    }
+    .stat-number {
+      font-size: 28px;
+      font-weight: 800;
+      color: #ffffff;
+    }
+    .stat-label {
+      font-size: 11px;
+      color: rgba(255,255,255,0.8);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+    }
+
+    /* Tech Stack */
+    .tech-section {
+      margin: 32px 0 24px;
+    }
+    .tech-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #636e72;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .tech-tags {
+      text-align: center;
+    }
+    .tech-tag {
+      display: inline-block;
+      background: #f0f3ff;
+      color: #6c5ce7;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 20px;
+      margin: 4px;
+    }
+
+    /* CTA */
+    .cta-section {
+      text-align: center;
+      padding: 16px 40px 32px;
+    }
+    .cta-button {
+      display: inline-block;
+      background: linear-gradient(135deg, #0984e3, #6c5ce7);
+      color: #ffffff !important;
+      font-size: 16px;
+      font-weight: 700;
+      text-decoration: none;
+      padding: 16px 48px;
+      border-radius: 50px;
+      letter-spacing: 0.5px;
+      box-shadow: 0 4px 16px rgba(108, 92, 231, 0.3);
+    }
+    .cta-secondary {
+      display: inline-block;
+      color: #6c5ce7 !important;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      margin-top: 16px;
+    }
+
+    /* Methodology */
+    .method-box {
+      background: #fafbfc;
+      border: 1px solid #e8ecf1;
+      border-radius: 12px;
+      padding: 24px;
+      margin: 24px 0;
+    }
+    .method-box h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #2d3436;
+      margin: 0 0 12px;
+    }
+    .method-box p {
+      font-size: 14px;
+      color: #636e72;
+      line-height: 1.6;
+      margin: 0 0 8px;
+    }
+    .method-formula {
+      background: #ffffff;
+      border: 1px dashed #a29bfe;
+      border-radius: 8px;
+      padding: 12px 16px;
+      text-align: center;
+      font-family: 'Courier New', monospace;
+      font-size: 16px;
+      font-weight: 700;
+      color: #6c5ce7;
+      margin: 12px 0;
+    }
+
+    /* Use Cases */
+    .usecase-list {
+      padding: 0;
+      margin: 20px 0;
+      list-style: none;
+    }
+    .usecase-list li {
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f3ff;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #2d3436;
+    }
+    .usecase-list li:last-child {
+      border-bottom: none;
+    }
+    .usecase-list li span.emoji {
+      margin-right: 8px;
+      font-size: 18px;
+    }
+
+    /* Footer */
+    .footer {
+      background: #2d3436;
+      padding: 32px 40px;
+      text-align: center;
+      border-radius: 24px 24px 0 0;
+    }
+    .footer p {
+      color: rgba(255,255,255,0.6);
+      font-size: 13px;
+      margin: 4px 0;
+      line-height: 1.5;
+    }
+    .footer a {
+      color: #a29bfe;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .footer .social-links {
+      margin: 16px 0 8px;
+    }
+    .footer .social-links a {
+      display: inline-block;
+      margin: 0 8px;
+      font-size: 14px;
+      color: rgba(255,255,255,0.7);
+      text-decoration: none;
+    }
+    .divider {
+      height: 1px;
+      background: rgba(255,255,255,0.1);
+      margin: 16px 0;
+    }
+
+    /* Responsive */
+    @media only screen and (max-width: 600px) {
+      .email-wrapper { width: 100% !important; }
+      .hero { padding: 32px 24px; }
+      .hero h1 { font-size: 26px; }
+      .content { padding: 24px 20px 16px; }
+      .cta-section { padding: 16px 20px 24px; }
+      .footer { padding: 24px 20px; }
+      .feature-card { display: block !important; width: 100% !important; margin-bottom: 12px; }
+      .stat-item { display: block !important; width: 100% !important; padding: 8px 0; }
+    }
+  </style>
+</head>
+<body>
+  <div style="background-color: #f4f6f9; padding: 24px 16px;">
+    <div class="email-wrapper" style="border-radius: 24px; overflow: hidden; box-shadow: 0 2px 24px rgba(0,0,0,0.06);">
+
+      <!-- ====== HERO ====== -->
+      <div class="hero">
+        <div class="hero-emoji">📍</div>
+        <h1>Estou Aqui</h1>
+        <p class="tagline">Monitor &amp; Estimativa de Movimentos Sociais em Tempo Real</p>
+        <span class="badge">Beta 1.0</span>
+      </div>
+
+      <!-- ====== INTRO ====== -->
+      <div class="content">
+        <p class="greeting">
+          Olá! 👋<br><br>
+          Meu nome é <strong>Edenilson</strong>, e gostaria de apresentar a você o
+          <strong>Estou Aqui</strong> — uma plataforma open-source criada para
+          <strong>monitorar, participar e estimar a dimensão de movimentos sociais</strong>
+          de forma transparente e em tempo real.
+        </p>
+
+        <div class="highlight-box">
+          <p>
+            🎯 <strong>O problema:</strong> Estimar o público em manifestações, protestos e
+            marchas é historicamente impreciso e politizado. O <em>Estou Aqui</em> entrega para a
+            sociedade civil uma ferramenta <strong>independente</strong>, <strong>auditável</strong> e
+            baseada em <strong>dados reais</strong>.
+          </p>
+        </div>
+
+        <!-- ====== FUNCIONALIDADES ====== -->
+        <h2 class="features-title">✨ O que o app faz</h2>
+
+        <table class="features-grid" cellpadding="0" cellspacing="12" role="presentation">
+          <tr>
+            <td class="feature-card">
+              <div class="feature-icon">🗺️</div>
+              <h3>Mapa em Tempo Real</h3>
+              <p>Visualize movimentos e manifestações no mapa com GPS e áreas de cobertura</p>
+            </td>
+            <td class="feature-card">
+              <div class="feature-icon">👥</div>
+              <h3>Estimativa de Público</h3>
+              <p>Algoritmo híbrido (check-ins + método de Jacobs) com nível de confiança</p>
+            </td>
+            <td class="feature-card">
+              <div class="feature-icon">📍</div>
+              <h3>Check-in "Estou Aqui"</h3>
+              <p>Marque presença em movimentos sociais com um toque</p>
+            </td>
+          </tr>
+          <tr>
+            <td class="feature-card">
+              <div class="feature-icon">📰</div>
+              <h3>Feed de Eventos</h3>
+              <p>Lista de movimentos ativos, agendados e filtros por categoria</p>
+            </td>
+            <td class="feature-card">
+              <div class="feature-icon">💬</div>
+              <h3>Chat em Tempo Real</h3>
+              <p>Comunicação entre participantes via Socket.IO</p>
+            </td>
+            <td class="feature-card">
+              <div class="feature-icon">🔔</div>
+              <h3>Notificações Push</h3>
+              <p>Alertas sobre eventos próximos ou em andamento via Firebase</p>
+            </td>
+          </tr>
+        </table>
+
+        <!-- ====== METODOLOGIA ====== -->
+        <div class="method-box">
+          <h3>📐 Metodologia Científica de Estimativa</h3>
+          <p>
+            Combinamos o <strong>Método de Jacobs</strong> (1967) — padrão ouro em contagem de
+            multidões — com dados reais de check-in para uma estimativa híbrida:
+          </p>
+          <div class="method-formula">
+            E = 0.6 × E<sub>check-in</sub> + 0.4 × E<sub>Jacobs</sub>
+          </div>
+          <p>
+            Cada estimativa inclui um <strong>nível de confiança</strong> (alta, média, baixa),
+            oferecendo transparência total sobre a qualidade dos dados.
+          </p>
+        </div>
+
+        <!-- ====== STATS ====== -->
+        <div class="stats-bar">
+          <table role="presentation">
+            <tr>
+              <td class="stat-item">
+                <div class="stat-number">3</div>
+                <div class="stat-label">Métodos de Estimativa</div>
+              </td>
+              <td class="stat-item">
+                <div class="stat-number">2</div>
+                <div class="stat-label">Plataformas (Android + Web)</div>
+              </td>
+              <td class="stat-item">
+                <div class="stat-number">100%</div>
+                <div class="stat-label">Open Source</div>
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- ====== PARA QUEM ====== -->
+        <h2 class="features-title">🎯 Para Quem?</h2>
+        <ul class="usecase-list">
+          <li><span class="emoji">📰</span> <strong>Jornalistas</strong> — Fonte independente para reportar tamanho real de manifestações</li>
+          <li><span class="emoji">🏛️</span> <strong>Pesquisadores &amp; Acadêmicos</strong> — Dados estruturados de participação em movimentos sociais</li>
+          <li><span class="emoji">✊</span> <strong>Movimentos Sociais &amp; ONGs</strong> — Organize, mobilize e meça o impacto das ações</li>
+          <li><span class="emoji">🏢</span> <strong>Gestores Públicos</strong> — Acompanhe movimentações para segurança e logística</li>
+          <li><span class="emoji">👤</span> <strong>Cidadãos</strong> — Participe, se informe e faça check-in em tempo real</li>
+        </ul>
+
+        <!-- ====== STACK ====== -->
+        <div class="tech-section">
+          <div class="tech-title">Stack Tecnológica</div>
+          <div class="tech-tags">
+            <span class="tech-tag">Flutter 3</span>
+            <span class="tech-tag">Dart</span>
+            <span class="tech-tag">Riverpod</span>
+            <span class="tech-tag">Node.js</span>
+            <span class="tech-tag">Express</span>
+            <span class="tech-tag">PostgreSQL</span>
+            <span class="tech-tag">PostGIS</span>
+            <span class="tech-tag">Socket.IO</span>
+            <span class="tech-tag">Firebase</span>
+            <span class="tech-tag">Google Maps</span>
+            <span class="tech-tag">JWT</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== CTA ====== -->
+      <div class="cta-section">
+        <a href="https://www.rpa4all.com/estou-aqui" class="cta-button" target="_blank">
+          🌐 Ver Demo ao Vivo
+        </a>
+        <br>
+        <a href="https://github.com/eddiejdi/estou-aqui" class="cta-secondary" target="_blank">
+          ⭐ Ver no GitHub →
+        </a>
+      </div>
+
+      <!-- ====== FOOTER ====== -->
+      <div class="footer">
+        <div class="social-links">
+          <a href="https://github.com/eddiejdi/estou-aqui" target="_blank">GitHub</a> ·
+          <a href="https://www.rpa4all.com/estou-aqui" target="_blank">Website</a> ·
+          <a href="https://www.linkedin.com/in/eddiejdi" target="_blank">LinkedIn</a>
+        </div>
+        <div class="divider"></div>
+        <p>
+          <strong style="color: rgba(255,255,255,0.85);">Estou Aqui</strong><br>
+          Monitor &amp; Estimativa de Movimentos Sociais
+        </p>
+        <p style="margin-top: 12px; font-size: 11px;">
+          Projeto open-source sob licença MIT<br>
+          Desenvolvido por <a href="https://github.com/eddiejdi">Edenilson</a> · RPA4ALL
+        </p>
+        <p style="margin-top: 12px; font-size: 11px; color: rgba(255,255,255,0.4);">
+          Você recebeu este email porque pode ter interesse em tecnologia para impacto social.<br>
+          <a href="#" style="color: rgba(255,255,255,0.5);">Cancelar inscrição</a>
+        </p>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>

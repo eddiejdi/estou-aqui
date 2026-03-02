@@ -60,7 +60,10 @@ function setupSocket(io) {
           include: [{ model: User, as: 'user', attributes: ['id', 'name', 'avatar'] }],
         });
 
-        io.to(`event:${eventId}`).emit('chat:message', fullMessage);
+        // Enviar para outros participantes da sala (exclui o remetente)
+        socket.to(`event:${eventId}`).emit('chat:message', fullMessage);
+        // Confirmar ao remetente (apenas 1 vez, evita duplicação)
+        socket.emit('chat:message', fullMessage);
       } catch (error) {
         socket.emit('error', { message: 'Erro ao enviar mensagem' });
       }

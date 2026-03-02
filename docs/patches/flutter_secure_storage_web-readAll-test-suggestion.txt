@@ -1,0 +1,36 @@
+Suggested unit test for flutter_secure_storage_web
+
+- Purpose: ensure readAll() does not throw when window.localStorage contains a key
+  whose value resolves to null via the JS Storage API (simulates browser edge-case)
+
+Example (pseudo-Dart test using package:js or a browser-test harness):
+
+```
+test('readAll handles storage entries with null values', () async {
+  // Inject a "corrupted" storage entry via JS interop (force Storage.key(i)
+  // to return the test key and Storage.getItem(key) to return null).
+  // This can be done by temporarily replacing window.localStorage with a
+  // small proxy object (only in the test harness).
+
+  // Arrange: put one valid entry and one corrupted entry
+  html.window.localStorage['flutter_secure_storage_test_k'] = 'encrypted-value';
+  // Simulate corrupted entry; depending on test harness it may be possible to
+  // use js_util to define a custom object for window.localStorage.
+
+  // Act
+  final result = await FlutterSecureStorageWeb().readAll();
+
+  // Assert: no throw, valid entry present, corrupted entry ignored/removed
+  expect(result['test_k'], 'decrypted-value');
+});
+```
+
+If browser-level mocking is hard in unit tests, add an integration test (selenium) that:
+- inserts a "weird" storage object via JS before app load
+- verifies that the app boots without console errors and that readAll() returns the valid keys
+
+
+Commit message suggestion:
+"fix(flutter_secure_storage_web): defensive localStorage iteration to avoid
+Storage.forEach crash on corrupted entries"
+
