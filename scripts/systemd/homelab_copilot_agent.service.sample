@@ -7,9 +7,11 @@ After=network.target docker.service
 
 [Service]
 User=homelab
-WorkingDirectory=/home/homelab/eddie-auto-dev/homelab_copilot_agent
+WorkingDirectory=/home/homelab/estou-aqui-deploy
 Environment=PORT=8085
 Environment=OLLAMA_HOST=http://192.168.15.2:11434
+Environment=OLLAMA_MODEL=eddie-assistant:latest
+Environment=EDDIE_AUTO_DEV_PATH=/home/homelab/eddie-auto-dev
 # Ensure the agent can resolve the Postgres container hostname and reach the API
 Environment=API_BASE_URL=http://172.17.0.1:8503
 # Recommended: use container hostname 'eddie-postgres' and attach to same Docker network
@@ -19,9 +21,10 @@ Environment=DATABASE_URL=postgresql://postgres:postgres@eddie-postgres:5432/post
 # Ensure SECRETS_AGENT_URL and SECRETS_AGENT_API_KEY are set in a drop-in or environment
 # Docker run flags: --network homelab_monitoring ensures the agent can reach
 # eddie-postgres and other containers on the shared monitoring network.
+# The helper auto-builds homelab-copilot-agent:latest from Dockerfile.homelab-copilot-agent if needed.
 # Clear previous ExecStart so systemd will accept the replacement in a drop-in
 ExecStart=
-ExecStart=/bin/bash -c '/home/homelab/eddie-auto-dev/estou-aqui/scripts/secrets-agent/run-homelab-copilot.sh --network homelab_monitoring'
+ExecStart=/bin/bash -c '/home/homelab/estou-aqui-deploy/scripts/secrets-agent/run-homelab-copilot.sh'
 Restart=always
 
 [Install]

@@ -219,7 +219,7 @@ class HomelabAdvisor:
     
     def __init__(self):
         self.ollama_host = os.environ.get("OLLAMA_HOST", "http://192.168.15.2:11434")
-        self.ollama_model = os.environ.get("OLLAMA_MODEL", "eddie-homelab:latest")
+        self.ollama_model = os.environ.get("OLLAMA_MODEL", "eddie-assistant:latest")
         self.database_url = os.environ.get("DATABASE_URL")
 
         # Try to retrieve DATABASE_URL from Secrets Agent when not set in env.

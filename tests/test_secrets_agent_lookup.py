@@ -1,6 +1,5 @@
 import importlib
-import os
-import advisor_agent_patch as advisor_module
+import sys
 
 
 def _fake_secrets_response():
@@ -36,8 +35,9 @@ def test_secrets_agent_populates_database_url(monkeypatch):
 
     monkeypatch.setattr("httpx.Client.get", fake_get, raising=False)
 
-    # reload module to trigger advisor init
-    importlib.reload(advisor_module)
+    # Import em módulo limpo para evitar métricas Prometheus duplicadas no registry global.
+    sys.modules.pop("advisor_agent_patch", None)
+    advisor_module = importlib.import_module("advisor_agent_patch")
     adv = advisor_module.advisor
 
     assert adv.database_url is not None

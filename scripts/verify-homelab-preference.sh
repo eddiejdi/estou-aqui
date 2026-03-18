@@ -25,7 +25,9 @@ check "scripts/copilot_bus_bridge.py" "http://192.168.15.2:8503"
 
 # 3) systemd sample uses eddie-postgres and homelab network
 check "scripts/systemd/homelab_copilot_agent.service.sample" "eddie-postgres"
-check "scripts/systemd/homelab_copilot_agent.service.sample" "--network homelab_monitoring"
+check "scripts/secrets-agent/run-homelab-copilot.sh" "--network \"$DOCKER_NETWORK\""
+check "scripts/secrets-agent/run-homelab-copilot.sh" "Dockerfile.homelab-copilot-agent"
+check "scripts/systemd/homelab_copilot_agent.service.sample" "EDDIE_AUTO_DEV_PATH=/home/homelab/eddie-auto-dev"
 
 # 4) docker-compose sets AGENT_BUS_URL to host gateway
 check "docker-compose.yml" "AGENT_BUS_URL=http://172.17.0.1:8503"

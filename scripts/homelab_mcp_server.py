@@ -204,13 +204,14 @@ def secrets_list() -> str:
 
 
 @mcp.tool()
-def secrets_get(name: str) -> str:
+def secrets_get(name: str, field: str = "password") -> str:
     """Obtém um secret pelo nome.
 
     Args:
-        name: Nome do secret (ex: 'eddie/telegram_bot_token', 'eddie/github_token').
+        name: Nome do secret (ex: 'eddie/telegram_bot_token', 'cloudflare/rpa4all').
+        field: Campo do secret a obter (default: 'password'). Ex: 'cf_token', 'tunnel_id'.
     """
-    result = _http_get(f"{SECRETS_AGENT_URL}/secrets/{name}", headers=_secrets_headers())
+    result = _http_get(f"{SECRETS_AGENT_URL}/secrets/{name}?field={field}", headers=_secrets_headers())
     return json.dumps(result, ensure_ascii=False, indent=2)
 
 
